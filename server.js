@@ -1,9 +1,8 @@
-
 const http = require("http");
 
 const PORT = process.env.PORT || 10000;
 
-const server = http.createServer((req, res) => {
+const server = http.createServer(async (req, res) => {
   res.setHeader("Content-Type", "application/json; charset=utf-8");
 
   if (req.url === "/") {
@@ -15,18 +14,29 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  if (req.url === "/buffs") {
-    res.writeHead(200);
-    res.end(JSON.stringify({
-      status: "ok",
-      patch: "Teste",
-      buffs: [
-        {
-          hero: "Teste",
-          change: "Dano aumentado"
-        }
-      ]
-    }));
+  if (req.url === "/test-blizzard") {
+    try {
+      const response = await fetch(
+        "https://overwatch.blizzard.com/pt-br/news/patch-notes/"
+      );
+
+      const html = await response.text();
+
+      res.writeHead(200);
+      res.end(JSON.stringify({
+        status: "ok",
+        blizzardStatus: response.status,
+        tamanhoDaPagina: html.length
+      }));
+
+    } catch (error) {
+      res.writeHead(500);
+      res.end(JSON.stringify({
+        status: "error",
+        message: error.message
+      }));
+    }
+
     return;
   }
 
