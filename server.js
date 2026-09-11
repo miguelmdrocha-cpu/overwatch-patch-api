@@ -149,11 +149,9 @@ function encontrarHeroi(texto) {
     return null;
   }
 
-  return (
-    HEROIS.find(
-      hero => normalizar(hero) === normalizado
-    ) || null
-  );
+  return HEROIS.find(
+    hero => normalizar(hero) === normalizado
+  ) || null;
 }
 
 // ======================================================
@@ -210,6 +208,8 @@ function classificarMudanca(texto) {
     "mais cura",
     "mais rapido",
     "mais rapida",
+    "reduzido para",
+    "reduzida para",
     "tempo de recarga reduzido",
     "tempo de recarga reduzida",
     "ganhou",
@@ -337,12 +337,6 @@ function pareceNomeDeHabilidade(texto) {
     return false;
   }
 
-  // Nunca permitir que outro herói seja tratado
-  // como nome de habilidade.
-  if (encontrarHeroi(original)) {
-    return false;
-  }
-
   const ignorados = [
     "comentario dos desenvolvedores",
     "comentarios dos desenvolvedores",
@@ -362,6 +356,7 @@ function pareceNomeDeHabilidade(texto) {
     "estadio",
     "damage",
     "support",
+    "tank",
     "topo da publicacao",
     "forum de discussao geral",
     "forum de relatorio de bugs"
@@ -389,13 +384,12 @@ function extrairElementosOrdenados(html) {
   const elementos = [];
 
   const regex =
-    /<(h[1-6]|li|p|strong|b|div|span)[^>]*>([\s\S]*?)<\/\1>/gi;
+    /<(h[1-6]|li|p|strong|b)[^>]*>([\s\S]*?)<\/\1>/gi;
 
   let match;
 
   while ((match = regex.exec(html)) !== null) {
     const tag = match[1].toLowerCase();
-
     const texto = limparHTML(match[2]);
 
     if (!texto) {
@@ -464,15 +458,12 @@ function extrairMudancasDoBlocoHeroi(
   ) {
     const elemento = elementos[i];
 
-    // ==================================================
-    // QUALQUER ELEMENTO COM NOME DE OUTRO HERÓI
-    // ENCERRA O BLOCO
-    // ==================================================
-
+    // Se encontrou outro herói, termina o bloco.
     const outroHeroi =
       encontrarHeroi(elemento.texto);
 
     if (
+      elemento.tag.startsWith("h") &&
       outroHeroi &&
       normalizar(outroHeroi) !==
         normalizar(nomeHeroi)
@@ -480,10 +471,7 @@ function extrairMudancasDoBlocoHeroi(
       break;
     }
 
-    // ==================================================
-    // TÍTULOS
-    // ==================================================
-
+    // Títulos
     if (elemento.tag.startsWith("h")) {
       const titulo =
         limparHTML(elemento.texto);
@@ -495,10 +483,7 @@ function extrairMudancasDoBlocoHeroi(
       continue;
     }
 
-    // ==================================================
-    // STRONG / B
-    // ==================================================
-
+    // Nome de habilidade em negrito
     if (
       (elemento.tag === "strong" ||
         elemento.tag === "b") &&
@@ -510,33 +495,7 @@ function extrairMudancasDoBlocoHeroi(
       continue;
     }
 
-    // ==================================================
-    // DIV / SPAN
-    // ==================================================
-
-    if (
-      elemento.tag === "div" ||
-      elemento.tag === "span"
-    ) {
-      const textoElemento =
-        limparHTML(elemento.texto);
-
-      if (
-        pareceNomeDeHabilidade(
-          textoElemento
-        )
-      ) {
-        habilidadeAtual =
-          textoElemento;
-      }
-
-      continue;
-    }
-
-    // ==================================================
-    // MUDANÇA
-    // ==================================================
-
+    // Mudança
     if (
       elemento.tag === "li" ||
       elemento.tag === "p"
@@ -550,13 +509,9 @@ function extrairMudancasDoBlocoHeroi(
 
       mudancas.push({
         hero: nomeHeroi,
-
         habilidade:
           habilidadeAtual || "Geral",
-
-        tipo:
-          classificarMudanca(texto),
-
+        tipo: classificarMudanca(texto),
         change: texto
       });
     }
@@ -787,6 +742,7 @@ function extrairSecaoPorTitulo(
 
 // ======================================================
 // BAIXA PÁGINA DA BLIZZARD
+// COM HTTPS + REDIRECIONAMENTO
 // ======================================================
 
 function baixarPagina(
@@ -829,6 +785,10 @@ function baixarPagina(
             }
           },
           resposta => {
+            // ------------------------------------------
+            // REDIRECIONAMENTO
+            // ------------------------------------------
+
             if (
               resposta.statusCode >= 300 &&
               resposta.statusCode < 400 &&
@@ -850,6 +810,10 @@ function baixarPagina(
                 .catch(reject);
             }
 
+            // ------------------------------------------
+            // STATUS HTTP
+            // ------------------------------------------
+
             if (
               resposta.statusCode < 200 ||
               resposta.statusCode >= 300
@@ -862,6 +826,10 @@ function baixarPagina(
                 )
               );
             }
+
+            // ------------------------------------------
+            // RECEBE HTML
+            // ------------------------------------------
 
             let html = "";
 
@@ -912,7 +880,7 @@ function baixarPagina(
       );
     }
   );
-}
+    }
 // ======================================================
 // OBTÉM OS DADOS DA BLIZZARD
 // ======================================================
@@ -1596,4 +1564,4 @@ server.listen(
       "=========================================="
     );
   }
-);
+);w
