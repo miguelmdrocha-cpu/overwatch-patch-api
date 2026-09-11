@@ -161,10 +161,6 @@ function classificarMudanca(texto) {
     "diminuem",
     "menos",
     "aumentado o tempo de recarga",
-    "aumentado",
-    "aumentada",
-    "aumentados",
-    "aumentadas",
     "recarga aumentada",
     "tempo de recarga aumentado",
     "dano reduzido",
@@ -392,7 +388,6 @@ function extrairMudancasDoBlocoHeroi(
   ) {
     const elemento = elementos[i];
 
-    // Outro título de herói encerra o bloco
     if (
       /^h[1-6]$/i.test(elemento.tag) &&
       encontrarHeroi(elemento.texto)
@@ -400,7 +395,6 @@ function extrairMudancasDoBlocoHeroi(
       break;
     }
 
-    // Títulos
     if (/^h[1-6]$/i.test(elemento.tag)) {
       const candidato = elemento.texto.trim();
 
@@ -411,7 +405,6 @@ function extrairMudancasDoBlocoHeroi(
       continue;
     }
 
-    // Strong / B
     if (
       elemento.tag === "strong" ||
       elemento.tag === "b"
@@ -425,7 +418,6 @@ function extrairMudancasDoBlocoHeroi(
       continue;
     }
 
-    // Div / Span
     if (
       elemento.tag === "div" ||
       elemento.tag === "span"
@@ -446,7 +438,6 @@ function extrairMudancasDoBlocoHeroi(
       continue;
     }
 
-    // Mudanças
     if (
       elemento.tag === "li" ||
       elemento.tag === "p"
@@ -633,7 +624,6 @@ function baixarPagina(url, redirecionamentos = 0) {
       resposta => {
         const status = resposta.statusCode || 0;
 
-        // Redirecionamento
         if (
           status >= 300 &&
           status < 400 &&
@@ -645,6 +635,7 @@ function baixarPagina(url, redirecionamentos = 0) {
 
           if (novaUrl.startsWith("/")) {
             const base = new URL(url);
+
             novaUrl =
               base.protocol +
               "//" +
@@ -894,6 +885,7 @@ async function obterDados() {
 
 const servidor = http.createServer(
   async (req, res) => {
+
     // CORS
     res.setHeader(
       "Access-Control-Allow-Origin",
@@ -943,7 +935,8 @@ const servidor = http.createServer(
             "/dados",
             "/patch",
             "/patch?hero=D.Va",
-            "/test-blizzard"
+            "/test-blizzard",
+            "/test-blizzard?buscar=D.Va"
           ]
         })
       );
@@ -965,21 +958,66 @@ const servidor = http.createServer(
             BLIZZARD_URL
           );
 
+        const termo =
+          url.searchParams.get("buscar") ||
+          "D.Va";
+
+        const regex = new RegExp(
+          escaparRegex(termo),
+          "gi"
+        );
+
+        const ocorrencias = [];
+
+        let match;
+
+        while (
+          (match = regex.exec(html)) !== null &&
+          ocorrencias.length < 5
+        ) {
+          const inicio =
+            Math.max(
+              0,
+              match.index - 1200
+            );
+
+          const fim =
+            Math.min(
+              html.length,
+              match.index +
+                termo.length +
+                2500
+            );
+
+          ocorrencias.push({
+            posicao: match.index,
+            trecho: html.substring(
+              inicio,
+              fim
+            )
+          });
+        }
+
         res.writeHead(200, {
           "Content-Type":
             "application/json; charset=utf-8"
         });
 
         res.end(
-          JSON.stringify({
-            sucesso: true,
-            tamanhoHTML: html.length,
-            inicioHTML: html.substring(
-              0,
-              500
-            )
-          })
+          JSON.stringify(
+            {
+              sucesso: true,
+              tamanhoHTML: html.length,
+              termoBuscado: termo,
+              ocorrenciasEncontradas:
+                ocorrencias.length,
+              ocorrencias
+            },
+            null,
+            2
+          )
         );
+
       } catch (erro) {
         res.writeHead(500, {
           "Content-Type":
@@ -1017,6 +1055,7 @@ const servidor = http.createServer(
         res.end(
           JSON.stringify(dados)
         );
+
       } catch (erro) {
         console.error(
           "Erro em /dados:",
@@ -1094,7 +1133,8 @@ const servidor = http.createServer(
 
           res.end(
             JSON.stringify({
-              erro: "Herói não encontrado",
+              erro:
+                "Herói não encontrado",
               hero: nomeHeroi
             })
           );
@@ -1112,6 +1152,7 @@ const servidor = http.createServer(
             dados.herois[heroi]
           )
         );
+
       } catch (erro) {
         console.error(
           "Erro em /patch:",
@@ -1147,7 +1188,8 @@ const servidor = http.createServer(
 
     res.end(
       JSON.stringify({
-        erro: "Endpoint não encontrado"
+        erro:
+          "Endpoint não encontrado"
       })
     );
   }
