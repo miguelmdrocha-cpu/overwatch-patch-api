@@ -2,10 +2,18 @@ const http = require("http");
 
 const PORT = process.env.PORT || 10000;
 
+
+/*
+==========================================================
+LIMPEZA DE HTML
+==========================================================
+*/
+
 function limparHTML(texto) {
   return texto
     .replace(/<script[\s\S]*?<\/script>/gi, " ")
     .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<svg[\s\S]*?<\/svg>/gi, " ")
     .replace(/<[^>]*>/gi, " ")
     .replace(/&nbsp;/gi, " ")
     .replace(/&amp;/gi, "&")
@@ -14,9 +22,22 @@ function limparHTML(texto) {
     .replace(/&#x27;/gi, "'")
     .replace(/&lt;/gi, "<")
     .replace(/&gt;/gi, ">")
+    .replace(/&#(\d+);/gi, (_, n) =>
+      String.fromCharCode(Number(n))
+    )
+    .replace(/&#x([0-9a-f]+);/gi, (_, n) =>
+      String.fromCharCode(parseInt(n, 16))
+    )
     .replace(/\s+/g, " ")
     .trim();
 }
+
+
+/*
+==========================================================
+NORMALIZA TEXTO
+==========================================================
+*/
 
 function normalizar(texto) {
   return texto
@@ -25,6 +46,13 @@ function normalizar(texto) {
     .toLowerCase()
     .trim();
 }
+
+
+/*
+==========================================================
+EXTRAI TÍTULOS DA PÁGINA
+==========================================================
+*/
 
 function extrairTitulos(html) {
   const titulos = [];
@@ -35,9 +63,13 @@ function extrairTitulos(html) {
   let match;
 
   while ((match = regex.exec(html)) !== null) {
-    const texto = limparHTML(match[1]);
+    const texto =
+      limparHTML(match[1]);
 
-    if (texto && !titulos.includes(texto)) {
+    if (
+      texto &&
+      !titulos.includes(texto)
+    ) {
       titulos.push(texto);
     }
   }
@@ -45,847 +77,1386 @@ function extrairTitulos(html) {
   return titulos;
 }
 
+
+/*
+==========================================================
+CLASSIFICA BUFF / NERF / ALTERAÇÃO
+==========================================================
+*/
+
 function classificarMudanca(texto) {
-  const t = normalizar(texto);
+
+  const t =
+    normalizar(texto);
+
 
   const buffsEspecificos = [
+
     "recarga reduzida",
     "tempo de recarga reduzido",
     "tempo de recarga diminui",
     "tempo de recarga diminuido",
     "tempo de recarga diminuiu",
+
     "intervalo reduzido",
     "intervalo diminui",
     "intervalo diminuido",
+
     "intervalo entre ataques reduzido",
+
     "cooldown reduzido",
     "cooldown diminui",
     "cooldown diminuido",
+
     "dano aumentado",
     "dano aumenta",
     "dano aumentado de",
+
     "vida aumentada",
     "vida aumenta",
     "vida aumentada de",
+
     "cura aumentada",
     "cura aumenta",
     "cura aumentada de",
+
     "velocidade aumentada",
     "velocidade aumenta",
+
     "velocidade do projetil aumentada",
     "velocidade do projetil aumenta",
+
     "duracao aumentada",
     "duracao aumenta",
+
     "municao aumentada",
     "municao aumenta",
+
     "alcance aumentado",
     "alcance aumenta",
+
     "raio aumentado",
     "raio aumenta"
   ];
 
+
   const nerfsEspecificos = [
+
     "recarga aumentada",
     "tempo de recarga aumentado",
     "tempo de recarga aumenta",
     "tempo de recarga aumentou",
+
     "intervalo aumentado",
     "intervalo aumenta",
+
     "intervalo entre ataques aumentado",
+
     "cooldown aumentado",
     "cooldown aumenta",
+    "cooldown aumentou",
+
     "dano reduzido",
     "dano reduz",
     "dano diminuiu",
+
     "vida reduzida",
     "vida reduz",
     "vida diminuiu",
+
     "cura reduzida",
     "cura reduz",
     "cura diminuiu",
+
     "velocidade reduzida",
     "velocidade reduz",
+
     "velocidade do projetil reduzida",
     "velocidade do projetil reduz",
+
     "duracao reduzida",
     "duracao reduz",
+
     "municao reduzida",
     "municao reduz",
+
     "alcance reduzido",
     "alcance reduz",
+
     "raio reduzido",
     "raio reduz"
   ];
 
+
   if (
     buffsEspecificos.some(
-      palavra => t.includes(normalizar(palavra))
+      palavra =>
+        t.includes(
+          normalizar(palavra)
+        )
     )
   ) {
     return "buff";
   }
 
+
   if (
     nerfsEspecificos.some(
-      palavra => t.includes(normalizar(palavra))
+      palavra =>
+        t.includes(
+          normalizar(palavra)
+        )
     )
   ) {
     return "nerf";
   }
 
+
   const palavrasBuff = [
+
     "aumentado",
     "aumentada",
     "aumentados",
     "aumentadas",
+
     "aumento",
     "aumentar",
+
     "mais dano",
     "mais vida",
     "mais cura",
+
     "melhorado",
     "melhorada",
+
     "melhoria",
+
     "incrementado",
     "incrementada"
   ];
 
+
   const palavrasNerf = [
+
     "reduzido",
     "reduzida",
     "reduzidos",
     "reduzidas",
+
     "redução",
     "reduzir",
+
     "diminuiu",
     "diminuido",
     "diminuída",
+
     "diminuição",
+
     "menos dano",
     "menos vida",
     "menos cura",
+
     "enfraquecido",
     "enfraquecida"
   ];
 
+
   const encontrouBuff =
     palavrasBuff.some(
-      palavra => t.includes(normalizar(palavra))
+      palavra =>
+        t.includes(
+          normalizar(palavra)
+        )
     );
+
 
   const encontrouNerf =
     palavrasNerf.some(
-      palavra => t.includes(normalizar(palavra))
+      palavra =>
+        t.includes(
+          normalizar(palavra)
+        )
     );
 
-  if (encontrouBuff && encontrouNerf) {
+
+  if (
+    encontrouBuff &&
+    encontrouNerf
+  ) {
     return "alteracao";
   }
+
 
   if (encontrouBuff) {
     return "buff";
   }
 
+
   if (encontrouNerf) {
     return "nerf";
   }
 
+
   return "alteracao";
 }
 
+
+/*
+==========================================================
+VERIFICA SE UM TEXTO PARECE SER UMA MUDANÇA
+==========================================================
+*/
+
+function pareceMudanca(texto) {
+
+  const t =
+    normalizar(texto);
+
+
+  const palavras = [
+
+    "aumentado",
+    "aumentada",
+    "aumentados",
+    "aumentadas",
+
+    "aumento",
+    "aumentar",
+
+    "reduzido",
+    "reduzida",
+    "reduzidos",
+    "reduzidas",
+
+    "redução",
+    "reduzir",
+
+    "diminuiu",
+    "diminuido",
+    "diminuída",
+    "diminuição",
+
+    "aumenta",
+    "diminui",
+
+    "melhorado",
+    "melhorada",
+
+    "dano",
+    "cura",
+    "vida",
+    "recarga",
+    "intervalo",
+    "duracao",
+    "duração",
+    "velocidade",
+    "municao",
+    "munição",
+    "alcance",
+    "raio",
+
+    "corrigido",
+    "corrigida",
+    "corrigidos",
+    "corrigidas",
+
+    "correção",
+    "correcao"
+  ];
+
+
+  return palavras.some(
+    palavra =>
+      t.includes(
+        normalizar(palavra)
+      )
+  );
+}
+
+
+/*
+==========================================================
+VERIFICA SE O TEXTO PARECE SER NOME DE HABILIDADE
+==========================================================
+*/
+
+function pareceNomeDeHabilidade(texto) {
+
+  if (!texto) {
+    return false;
+  }
+
+
+  const t =
+    texto.trim();
+
+
+  if (
+    t.length < 2 ||
+    t.length > 100
+  ) {
+    return false;
+  }
+
+
+  /*
+    Se parece claramente uma mudança,
+    não deve ser tratado como habilidade.
+  */
+
+  if (
+    pareceMudanca(t)
+  ) {
+    return false;
+  }
+
+
+  /*
+    Evita textos que são claramente
+    comentários ou frases longas.
+  */
+
+  if (
+    t.endsWith(".") ||
+    t.endsWith(":")
+  ) {
+    return false;
+  }
+
+
+  const palavrasIgnoradas = [
+
+    "comentários dos desenvolvedores",
+    "comentarios dos desenvolvedores",
+
+    "notas dos desenvolvedores",
+    "notas dos desenvolvedores",
+
+    "observação",
+    "observacao",
+
+    "observações",
+    "observacoes",
+
+    "geral",
+
+    "correções",
+    "correcoes",
+
+    "correção de problemas",
+    "correcao de problemas"
+  ];
+
+
+  if (
+    palavrasIgnoradas.includes(
+      normalizar(t)
+    )
+  ) {
+    return false;
+  }
+
+
+  return true;
+}
+
+
+/*
+==========================================================
+EXTRAI AS MUDANÇAS JUNTO COM HABILIDADE/ARMA
+==========================================================
+*/
+
 function extrairMudancas(trecho) {
+
   const mudancas = [];
+
+
+  /*
+    Primeiro pegamos todos os elementos que podem
+    representar o nome de uma habilidade.
+
+    A posição é importante porque depois associamos
+    cada mudança ao último nome encontrado antes dela.
+  */
+
+  const marcadores = [];
+
+
+  /*
+    H1 até H6
+  */
+
+  const regexTitulos =
+    /<h[1-6][^>]*>([\s\S]*?)<\/h[1-6]>/gi;
+
+  let tituloMatch;
+
+
+  while (
+    (tituloMatch =
+      regexTitulos.exec(trecho)) !== null
+  ) {
+
+    const texto =
+      limparHTML(
+        tituloMatch[1]
+      );
+
+
+    if (
+      pareceNomeDeHabilidade(
+        texto
+      )
+    ) {
+
+      marcadores.push({
+
+        texto:
+          texto,
+
+        inicio:
+          tituloMatch.index,
+
+        prioridade:
+          3
+      });
+    }
+  }
+
+
+  /*
+    STRONG
+  */
+
+  const regexStrong =
+    /<strong[^>]*>([\s\S]*?)<\/strong>/gi;
+
+  let strongMatch;
+
+
+  while (
+    (strongMatch =
+      regexStrong.exec(trecho)) !== null
+  ) {
+
+    const texto =
+      limparHTML(
+        strongMatch[1]
+      );
+
+
+    if (
+      pareceNomeDeHabilidade(
+        texto
+      )
+    ) {
+
+      marcadores.push({
+
+        texto:
+          texto,
+
+        inicio:
+          strongMatch.index,
+
+        prioridade:
+          2
+      });
+    }
+  }
+
+
+  /*
+    BOLD <b>
+  */
+
+  const regexBold =
+    /<b[^>]*>([\s\S]*?)<\/b>/gi;
+
+  let boldMatch;
+
+
+  while (
+    (boldMatch =
+      regexBold.exec(trecho)) !== null
+  ) {
+
+    const texto =
+      limparHTML(
+        boldMatch[1]
+      );
+
+
+    if (
+      pareceNomeDeHabilidade(
+        texto
+      )
+    ) {
+
+      marcadores.push({
+
+        texto:
+          texto,
+
+        inicio:
+          boldMatch.index,
+
+        prioridade:
+          1
+      });
+    }
+  }
+
+
+  /*
+    Ordena os marcadores pela posição no HTML.
+  */
+
+  marcadores.sort(
+    (a, b) =>
+      a.inicio - b.inicio
+  );
+
+
+  /*
+    Remove marcadores duplicados
+    muito próximos.
+  */
+
+  const marcadoresFiltrados = [];
+
+
+  for (
+    const marcador
+    of marcadores
+  ) {
+
+    const ultimo =
+      marcadoresFiltrados[
+        marcadoresFiltrados.length - 1
+      ];
+
+
+    if (
+      ultimo &&
+      normalizar(
+        ultimo.texto
+      ) ===
+      normalizar(
+        marcador.texto
+      )
+    ) {
+
+      /*
+        Se for o mesmo texto, ficamos com
+        o marcador de maior prioridade.
+      */
+
+      if (
+        marcador.prioridade >
+        ultimo.prioridade
+      ) {
+
+        marcadoresFiltrados[
+          marcadoresFiltrados.length - 1
+        ] = marcador;
+      }
+
+      continue;
+    }
+
+
+    marcadoresFiltrados.push(
+      marcador
+    );
+  }
+
+
+  /*
+    Função para descobrir qual é a habilidade
+    imediatamente anterior à mudança.
+  */
+
+  function encontrarHabilidade(
+    posicao
+  ) {
+
+    let habilidade =
+      null;
+
+
+    for (
+      const marcador
+      of marcadoresFiltrados
+    ) {
+
+      if (
+        marcador.inicio <
+        posicao
+      ) {
+
+        habilidade =
+          marcador.texto;
+
+      } else {
+
+        break;
+      }
+    }
+
+
+    return habilidade;
+  }
+
+
+  /*
+    Primeiro tentamos <li>, porque normalmente
+    as alterações estão em listas.
+  */
 
   const regexLi =
     /<li[^>]*>([\s\S]*?)<\/li>/gi;
 
-  let match;
+  let matchLi;
 
-  while ((match = regexLi.exec(trecho)) !== null) {
-    const texto = limparHTML(match[1]);
+  let encontrouLi =
+    false;
+
+
+  while (
+    (matchLi =
+      regexLi.exec(trecho)) !== null
+  ) {
+
+    encontrouLi =
+      true;
+
+
+    const texto =
+      limparHTML(
+        matchLi[1]
+      );
+
 
     if (
-      texto &&
-      texto.length >= 5 &&
-      !mudancas.includes(texto)
+      !texto ||
+      texto.length < 5
     ) {
-      mudancas.push(texto);
+      continue;
+    }
+
+
+    /*
+      Evita pegar itens que são apenas
+      containers internos sem alteração.
+    */
+
+    if (
+      !pareceMudanca(texto)
+    ) {
+      continue;
+    }
+
+
+    const habilidade =
+      encontrarHabilidade(
+        matchLi.index
+      );
+
+
+    const duplicado =
+      mudancas.some(
+        item =>
+          item.change === texto &&
+          item.habilidade ===
+            habilidade
+      );
+
+
+    if (!duplicado) {
+
+      mudancas.push({
+
+        habilidade:
+          habilidade,
+
+        change:
+          texto
+      });
     }
   }
 
-  if (mudancas.length === 0) {
+
+  /*
+    Se não houver <li>, usamos <p>.
+  */
+
+  if (
+    !encontrouLi ||
+    mudancas.length === 0
+  ) {
+
     const regexP =
       /<p[^>]*>([\s\S]*?)<\/p>/gi;
 
-    while ((match = regexP.exec(trecho)) !== null) {
-      const texto = limparHTML(match[1]);
+    let matchP;
+
+
+    while (
+      (matchP =
+        regexP.exec(trecho)) !== null
+    ) {
+
+      const texto =
+        limparHTML(
+          matchP[1]
+        );
+
 
       if (
-        texto &&
-        texto.length >= 5 &&
-        !mudancas.includes(texto)
+        !texto ||
+        texto.length < 5
       ) {
-        mudancas.push(texto);
+        continue;
+      }
+
+
+      if (
+        !pareceMudanca(texto)
+      ) {
+        continue;
+      }
+
+
+      const habilidade =
+        encontrarHabilidade(
+          matchP.index
+        );
+
+
+      const duplicado =
+        mudancas.some(
+          item =>
+            item.change === texto &&
+            item.habilidade ===
+              habilidade
+        );
+
+
+      if (!duplicado) {
+
+        mudancas.push({
+
+          habilidade:
+            habilidade,
+
+          change:
+            texto
+        });
       }
     }
   }
 
-  if (mudancas.length === 0) {
-    const texto = limparHTML(trecho);
+
+  /*
+    FALLBACK:
+    Se a estrutura da página mudar e não encontrarmos
+    <li> ou <p>, ainda retornamos o texto bruto.
+  */
+
+  if (
+    mudancas.length === 0
+  ) {
+
+    const texto =
+      limparHTML(
+        trecho
+      );
+
 
     if (texto) {
-      mudancas.push(texto);
+
+      mudancas.push({
+
+        habilidade:
+          null,
+
+        change:
+          texto
+      });
     }
   }
+
 
   return mudancas;
 }
 
-function separarMudancas(hero, mudancas) {
+
+/*
+==========================================================
+SEPARA AS MUDANÇAS
+==========================================================
+*/
+
+function separarMudancas(
+  hero,
+  mudancas
+) {
+
   const resultado = [];
 
-  for (const mudanca of mudancas) {
+
+  for (
+    const mudanca
+    of mudancas
+  ) {
+
     resultado.push({
-      hero: hero,
-      tipo: classificarMudanca(mudanca),
-      change: mudanca
+
+      hero:
+        hero,
+
+      habilidade:
+        mudanca.habilidade ||
+        null,
+
+      tipo:
+        classificarMudanca(
+          mudanca.change
+        ),
+
+      change:
+        mudanca.change
     });
   }
+
 
   return resultado;
 }
 
+
+/*
+==========================================================
+CRIA TEXTO PARA O DISCORD
+==========================================================
+*/
+
 function criarTexto(lista) {
-  if (lista.length === 0) {
-    return "Nenhum resultado encontrado nesta atualização.";
+
+  if (
+    lista.length === 0
+  ) {
+
+    return (
+      "Nenhum resultado encontrado nesta atualização."
+    );
   }
 
+
   let texto = "";
+
   let ultimoHeroi = "";
 
-  lista.forEach((item) => {
-    if (item.hero !== ultimoHeroi) {
-      if (texto !== "") {
-        texto += "\n";
+
+  lista.forEach(
+    (item) => {
+
+      if (
+        item.hero !==
+        ultimoHeroi
+      ) {
+
+        if (
+          texto !== ""
+        ) {
+
+          texto +=
+            "\n";
+        }
+
+
+        texto +=
+          `🦸 **${item.hero}**\n`;
+
+
+        ultimoHeroi =
+          item.hero;
       }
 
-      texto += `🦸 **${item.hero}**\n`;
 
-      ultimoHeroi = item.hero;
-    }
+      /*
+        Se temos o nome da habilidade,
+        mostramos:
 
-    if (item.tipo === "buff") {
-      texto += `🟢 ${item.change}\n`;
-    }
+        🟢 **Flecha da Tempestade** —
+        Duração aumentada...
+      */
 
-    else if (item.tipo === "nerf") {
-      texto += `🔴 ${item.change}\n`;
-    }
+      let linha;
 
-    else {
-      texto += `⚪ ${item.change}\n`;
+
+      if (
+        item.habilidade
+      ) {
+
+        linha =
+          `**${item.habilidade}** — ${item.change}`;
+
+      } else {
+
+        linha =
+          item.change;
+      }
+
+
+      if (
+        item.tipo ===
+        "buff"
+      ) {
+
+        texto +=
+          `🟢 ${linha}\n`;
+
+      }
+
+      else if (
+        item.tipo ===
+        "nerf"
+      ) {
+
+        texto +=
+          `🔴 ${linha}\n`;
+
+      }
+
+      else {
+
+        texto +=
+          `⚪ ${linha}\n`;
+      }
     }
-  });
+  );
+
 
   return texto.trim();
 }
 
-function criarTextoCorrecoes(lista) {
-  if (lista.length === 0) {
-    return "Nenhuma correção encontrada nesta atualização.";
+
+/*
+==========================================================
+TEXTO DAS CORREÇÕES
+==========================================================
+*/
+
+function criarTextoCorrecoes(
+  lista
+) {
+
+  if (
+    lista.length === 0
+  ) {
+
+    return (
+      "Nenhuma correção encontrada nesta atualização."
+    );
   }
 
+
   return lista
-    .map(item => `🔧 ${item}`)
+    .map(
+      item =>
+        `🔧 ${item}`
+    )
     .join("\n");
 }
 
-function dividirTexto(texto, limite = 3500) {
+
+/*
+==========================================================
+DIVIDE TEXTOS GRANDES
+==========================================================
+*/
+
+function dividirTexto(
+  texto,
+  limite = 3500
+) {
+
   const partes = [];
 
   let atual = "";
 
-  const blocos = texto.split("\n\n");
 
-  for (const bloco of blocos) {
+  const blocos =
+    texto.split("\n\n");
+
+
+  for (
+    const bloco
+    of blocos
+  ) {
+
     if (
-      (atual + "\n\n" + bloco).length >
+      (
+        atual +
+        "\n\n" +
+        bloco
+      ).length >
       limite
     ) {
-      if (atual.length > 0) {
-        partes.push(atual.trim());
+
+      if (
+        atual.length > 0
+      ) {
+
+        partes.push(
+          atual.trim()
+        );
       }
 
-      atual = bloco;
-    }
 
-    else {
+      atual =
+        bloco;
+
+    } else {
+
       atual +=
-        (atual ? "\n\n" : "") +
+        (
+          atual
+            ? "\n\n"
+            : ""
+        ) +
         bloco;
     }
   }
 
-  if (atual.length > 0) {
-    partes.push(atual.trim());
+
+  if (
+    atual.length > 0
+  ) {
+
+    partes.push(
+      atual.trim()
+    );
   }
+
 
   return partes;
 }
 
-function extrairSecaoPorTitulo(html, tituloProcurado) {
+
+/*
+==========================================================
+EXTRAI UMA SEÇÃO PELO TÍTULO
+==========================================================
+*/
+
+function extrairSecaoPorTitulo(
+  html,
+  tituloProcurado
+) {
+
   const regexTitulo =
     /<h[1-6][^>]*>([\s\S]*?)<\/h[1-6]>/gi;
 
   let match;
 
-  while ((match = regexTitulo.exec(html)) !== null) {
+
+  while (
+    (match =
+      regexTitulo.exec(html)) !== null
+  ) {
+
     const titulo =
-      limparHTML(match[1]);
+      limparHTML(
+        match[1]
+      );
+
 
     if (
       normalizar(titulo) ===
       normalizar(tituloProcurado)
     ) {
+
       const inicio =
-        match.index + match[0].length;
+        match.index +
+        match[0].length;
+
 
       const restante =
-        html.substring(inicio);
+        html.substring(
+          inicio
+        );
+
 
       const proximoTitulo =
         /<h[1-6][^>]*>[\s\S]*?<\/h[1-6]>/i
           .exec(restante);
 
-      if (proximoTitulo) {
+
+      if (
+        proximoTitulo
+      ) {
+
         return restante.substring(
           0,
           proximoTitulo.index
         );
       }
 
+
       return restante;
     }
   }
 
+
   return "";
 }
 
+
+/*
+==========================================================
+ESCAPA TEXTO PARA REGEX
+==========================================================
+*/
+
+function escaparRegex(
+  texto
+) {
+
+  return texto.replace(
+    /[.*+?^${}()|[\]\\]/g,
+    "\\$&"
+  );
+}
+
+
+/*
+==========================================================
+ENCONTRA O BLOCO DE UM HERÓI
+==========================================================
+*/
+
+function extrairBlocoHeroi(
+  html,
+  nomeHeroi,
+  nomesHerois
+) {
+
+  const regexHeroi =
+    new RegExp(
+      `<h[1-6][^>]*>\\s*${escaparRegex(
+        nomeHeroi
+      )}\\s*<\\/h[1-6]>`,
+      "i"
+    );
+
+
+  const matchHeroi =
+    regexHeroi.exec(
+      html
+    );
+
+
+  if (
+    !matchHeroi
+  ) {
+    return "";
+  }
+
+
+  const inicio =
+    matchHeroi.index +
+    matchHeroi[0].length;
+
+
+  const depoisHeroi =
+    html.substring(
+      inicio
+    );
+
+
+  /*
+    IMPORTANTE:
+
+    Não usamos simplesmente o próximo <h>,
+    porque esse próximo <h> pode ser justamente
+    o nome de uma habilidade.
+
+    Procuramos especificamente o próximo HERÓI.
+  */
+
+  let fim =
+    depoisHeroi.length;
+
+
+  for (
+    const outroHeroi
+    of nomesHerois
+  ) {
+
+    if (
+      outroHeroi ===
+      nomeHeroi
+    ) {
+      continue;
+    }
+
+
+    const regexOutro =
+      new RegExp(
+        `<h[1-6][^>]*>\\s*${escaparRegex(
+          outroHeroi
+        )}\\s*<\\/h[1-6]>`,
+        "i"
+      );
+
+
+    const matchOutro =
+      regexOutro.exec(
+        depoisHeroi
+      );
+
+
+    if (
+      matchOutro &&
+      matchOutro.index <
+        fim
+    ) {
+
+      fim =
+        matchOutro.index;
+    }
+  }
+
+
+  /*
+    Também encerramos quando chegamos a
+    uma seção geral importante.
+  */
+
+  const secoesFinais = [
+
+    "Correção de problemas",
+    "Correcoes de problemas",
+
+    "Notas do patch",
+    "Notas de atualização",
+
+    "Atualizações gerais",
+    "Atualizacoes gerais"
+  ];
+
+
+  for (
+    const secao
+    of secoesFinais
+  ) {
+
+    const regexSecao =
+      new RegExp(
+        `<h[1-6][^>]*>\\s*${escaparRegex(
+          secao
+        )}\\s*<\\/h[1-6]>`,
+        "i"
+      );
+
+
+    const matchSecao =
+      regexSecao.exec(
+        depoisHeroi
+      );
+
+
+    if (
+      matchSecao &&
+      matchSecao.index <
+        fim
+    ) {
+
+      fim =
+        matchSecao.index;
+    }
+  }
+
+
+  return depoisHeroi.substring(
+    0,
+    fim
+  );
+}
+
+
+/*
+==========================================================
+OBTÉM TODOS OS DADOS DA BLIZZARD
+==========================================================
+*/
+
 async function obterDados() {
+
   const response =
     await fetch(
       "https://overwatch.blizzard.com/pt-br/news/patch-notes/"
     );
 
+
   const html =
     await response.text();
 
-  if (!response.ok) {
+
+  if (
+    !response.ok
+  ) {
+
     throw new Error(
       `Blizzard respondeu com status ${response.status}`
     );
   }
 
+
   const titulos =
-    extrairTitulos(html);
+    extrairTitulos(
+      html
+    );
+
 
   const indiceHerois =
     titulos.findIndex(
       titulo =>
         normalizar(titulo) ===
-        normalizar("Atualizações dos heróis")
+        normalizar(
+          "Atualizações dos heróis"
+        )
     );
+
 
   const indiceCorrecoes =
     titulos.findIndex(
       titulo =>
         normalizar(titulo) ===
-        normalizar("Correção de problemas")
+        normalizar(
+          "Correção de problemas"
+        )
     );
 
+
+  /*
+    LISTA DOS HERÓIS
+  */
+
   const nomesHerois = [
+
     "D.Va",
     "Domina",
     "Mauga",
     "Winston",
     "Wrecking Ball",
     "Zarya",
+
     "Anran",
     "Freja",
     "Junkrat",
     "Sierra",
-    "Symmetra",
-    "Torbjörn",
-    "Vendetta",
-    "Widowmaker",
-    "Baptiste",
-    "Brigitte",
-    "Jetpack Cat",
-    "Kiriko",
-    "Wuyang",
-    "Zenyatta",
-    "Genji",
-    "Rainha Junker",
-    "Ana"
-  ];
-
-  const todasMudancas = [];
-
-  for (const nome of nomesHerois) {
-    const regexHeroi =
-      new RegExp(
-        `<h[1-6][^>]*>\\s*${nome.replace(
-          /[.*+?^${}()|[\]\\]/g,
-          "\\$&"
-        )}\\s*<\\/h[1-6]>`,
-        "i"
-      );
-
-    const matchHeroi =
-      regexHeroi.exec(html);
-
-    if (!matchHeroi) {
-      continue;
-    }
-
-    const inicioHeroi =
-      matchHeroi.index;
-
-    const depoisHeroi =
-      html.substring(
-        inicioHeroi +
-        matchHeroi[0].length
-      );
-
-    const proximoTitulo =
-      /<h[1-6][^>]*>[\s\S]*?<\/h[1-6]>/i
-        .exec(depoisHeroi);
-
-    const trecho =
-      proximoTitulo
-        ? depoisHeroi.substring(
-            0,
-            proximoTitulo.index
-          )
-        : depoisHeroi.substring(
-            0,
-            10000
-          );
-
-    const mudancas =
-      extrairMudancas(trecho);
-
-    const classificadas =
-      separarMudancas(
-        nome,
-        mudancas
-      );
-
-    todasMudancas.push(
-      ...classificadas
-    );
-  }
-
-  const buffs =
-    todasMudancas.filter(
-      item => item.tipo === "buff"
-    );
-
-  const nerfs =
-    todasMudancas.filter(
-      item => item.tipo === "nerf"
-    );
-
-  const alteracoes =
-    todasMudancas.filter(
-      item => item.tipo === "alteracao"
-    );
-
-  const buffsTexto =
-    criarTexto(buffs);
-
-  const nerfsTexto =
-    criarTexto(nerfs);
-
-  const alteracoesTexto =
-    criarTexto(alteracoes);
-
-  const trechoCorrecoes =
-    extrairSecaoPorTitulo(
-      html,
-      "Correção de problemas"
-    );
-
-  const correcoes =
-    extrairMudancas(
-      trechoCorrecoes
-    );
-
-  const correcoesTexto =
-    criarTextoCorrecoes(
-      correcoes
-    );
-
-  const tudoLista = [
-    ...todasMudancas,
-
-    ...correcoes.map(correcao => ({
-      hero: "Correções",
-      tipo: "alteracao",
-      change: correcao
-    }))
-  ];
-
-  const tudoTexto =
-    criarTexto(tudoLista);
-
-  const buffsPartes =
-    dividirTexto(
-      buffsTexto
-    );
-
-  const nerfsPartes =
-    dividirTexto(
-      nerfsTexto
-    );
-
-  const alteracoesPartes =
-    dividirTexto(
-      alteracoesTexto
-    );
-
-  const correcoesPartes =
-    dividirTexto(
-      correcoesTexto
-    );
-
-  const tudoPartes =
-    dividirTexto(
-      tudoTexto
-    );
-
-  let patch =
-    "Patch Notes";
-
-  if (indiceHerois > 0) {
-    patch =
-      titulos[indiceHerois - 1];
-  }
-
-  return {
-    status: "ok",
-
-    blizzardStatus:
-      response.status,
-
-    patch:
-      patch,
-
-    todasMudancas:
-      todasMudancas,
-
-    buffs:
-      buffs,
-
-    nerfs:
-      nerfs,
-
-    alteracoes:
-      alteracoes,
-
-    correcoes:
-      correcoes,
-
-    tudo:
-      tudoLista,
-
-    buffsTexto:
-      buffsTexto,
-
-    nerfsTexto:
-      nerfsTexto,
-
-    alteracoesTexto:
-      alteracoesTexto,
-
-    correcoesTexto:
-      correcoesTexto,
-
-    tudoTexto:
-      tudoTexto,
-
-    buffsPartes:
-      buffsPartes,
-
-    nerfsPartes:
-      nerfsPartes,
-
-    alteracoesPartes:
-      alteracoesPartes,
-
-    correcoesPartes:
-      correcoesPartes,
-
-    tudoPartes:
-      tudoPartes,
-
-    quantidadeDeMudancas:
-      todasMudancas.length,
-
-    quantidadeDeBuffs:
-      buffs.length,
-
-    quantidadeDeNerfs:
-      nerfs.length,
-
-    quantidadeDeAlteracoes:
-      alteracoes.length,
-
-    quantidadeDeCorrecoes:
-      correcoes.length,
-
-    quantidadeTotal:
-      todasMudancas.length +
-      correcoes.length,
-
-    quantidadeDePartesBuffs:
-      buffsPartes.length,
-
-    quantidadeDePartesNerfs:
-      nerfsPartes.length,
-
-    quantidadeDePartesAlteracoes:
-      alteracoesPartes.length,
-
-    quantidadeDePartesCorrecoes:
-      correcoesPartes.length,
-
-    quantidadeDePartesTudo:
-      tudoPartes.length,
-
-    secaoDeCorrecoesEncontrada:
-      indiceCorrecoes !== -1
-  };
-}
-
-const server =
-  http.createServer(
-    async (req, res) => {
-
-      res.setHeader(
-        "Content-Type",
-        "application/json; charset=utf-8"
-      );
-
-      if (req.url === "/") {
-        res.writeHead(200);
-
-        res.end(
-          JSON.stringify({
-            status: "online",
-            message:
-              "Overwatch Patch API está funcionando!"
-          })
-        );
-
-        return;
-      }
-
-      if (
-        req.url === "/test-blizzard"
-      ) {
-        try {
-          const response =
-            await fetch(
-              "https://overwatch.blizzard.com/pt-br/news/patch-notes/"
-            );
-
-          const html =
-            await response.text();
-
-          res.writeHead(200);
-
-          res.end(
-            JSON.stringify({
-              status: "ok",
-              blizzardStatus:
-                response.status,
-              tamanhoDaPagina:
-                html.length
-            })
-          );
-
-        } catch (error) {
-          res.writeHead(500);
-
-          res.end(
-            JSON.stringify({
-              status: "error",
-              message:
-                error.message
-            })
-          );
-        }
-
-        return;
-      }
-
-      if (req.url === "/dados") {
-        try {
-          const dados =
-            await obterDados();
-
-          res.writeHead(200);
-
-          res.end(
-            JSON.stringify(
-              dados,
-              null,
-              2
-            )
-          );
-
-        } catch (error) {
-          res.writeHead(500);
-
-          res.end(
-            JSON.stringify(
-              {
-                status: "error",
-                message:
-                  error.message
-              },
-              null,
-              2
-            )
-          );
-        }
-
-        return;
-      }
-
-      if (req.url.startsWith("/patch")) {
-        try {
-          const url =
-            new URL(
-              req.url,
-              `http://localhost:${PORT}`
-            );
-
-          const nomeHeroi =
-            url.searchParams.get("hero");
-
-          if (!nomeHeroi) {
-            res.writeHead(400);
-
-            res.end(
-              JSON.stringify({
-                status: "error",
-                message:
-                  "Informe o nome do herói. Exemplo: /patch?hero=D.Va"
-              })
-            );
-
-            return;
-          }
-
-          const dados =
-            await obterDados();
-
-          const busca =
-            normalizar(nomeHeroi);
-
-          const resultados =
-            dados.todasMudancas.filter(
-              item =>
-                normalizar(item.hero) ===
-                busca
-            );
-
-          if (resultados.length === 0) {
-            res.writeHead(404);
-
-            res.end(
-              JSON.stringify({
-                status: "error",
-                message:
-                  `Herói "${nomeHeroi}" não encontrado nesta atualização.`
-              })
-            );
-
-            return;
-          }
-
-          const texto =
-            criarTexto(resultados);
-
-          const partes =
-            dividirTexto(texto);
-
-          res.writeHead(200);
-
-          res.end(
-            JSON.stringify(
-              {
-                status: "ok",
-
-                hero:
-                  resultados[0].hero,
-
-                mudancas:
-                  resultados,
-
-                texto:
-                  texto,
-
-                partes:
-                  partes,
-
-                quantidade:
-                  resultados.length
-              },
-              null,
-              2
-            )
-          );
-
-        } catch (error) {
-          res.writeHead(500);
-
-          res.end(
-            JSON.stringify(
-              {
-                status: "error",
-                message:
-                  error.message
-              },
-              null,
-              2
-            )
-          );
-        }
-
-        return;
-      }
-
-      res.writeHead(404);
-
-      res.end(
-        JSON.stringify({
-          status: "error",
-          message:
-            "Rota não encontrada"
-        })
-      );
-    }
-  );
-
-server.listen(
-  PORT,
-  "0.0.0.0",
-  () => {
-    console.log(
-      `API funcionando na porta ${PORT}`
-    );
-  }
-);
+    "
