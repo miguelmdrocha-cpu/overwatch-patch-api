@@ -333,12 +333,6 @@ function pareceNomeDeHabilidade(texto) {
     return false;
   }
 
-  // Nunca considerar o nome de outro herói
-  // como nome de habilidade.
-  if (encontrarHeroi(original)) {
-    return false;
-  }
-
   if (pareceMudanca(original)) {
     return false;
   }
@@ -362,6 +356,7 @@ function pareceNomeDeHabilidade(texto) {
     "estadio",
     "damage",
     "support",
+    "tank",
     "topo da publicacao",
     "forum de discussao geral",
     "forum de relatorio de bugs"
@@ -384,22 +379,12 @@ function pareceNomeDeHabilidade(texto) {
 // ======================================================
 // EXTRAI ELEMENTOS DO HTML
 // ======================================================
-//
-// ALTERAÇÃO:
-// Além de h1-h6, li, p, strong e b,
-// agora também observamos div e span.
-//
-// IMPORTANTE:
-// Esses elementos NÃO serão usados para
-// determinar o fim do bloco de um herói.
-// Isso evita o problema do teste anterior.
-// ======================================================
 
 function extrairElementosOrdenados(html) {
   const elementos = [];
 
   const regex =
-    /<(h[1-6]|li|p|strong|b|div|span)[^>]*>([\s\S]*?)<\/\1>/gi;
+    /<(h[1-6]|li|p|strong|b)[^>]*>([\s\S]*?)<\/\1>/gi;
 
   let match;
 
@@ -454,7 +439,7 @@ function extrairTitulos(html) {
 }
 
 // ======================================================
-// EXTRAI MUDANÇAS DO BLOCO DO HERÓI
+// EXTRAI MUDANÇAS DO HERÓI
 // ======================================================
 
 function extrairMudancasDoBlocoHeroi(
@@ -473,12 +458,7 @@ function extrairMudancasDoBlocoHeroi(
   ) {
     const elemento = elementos[i];
 
-    // ==================================================
-    // IMPORTANTE:
-    // Só usamos TÍTULOS para detectar outro herói.
-    // Div/span NÃO podem encerrar o bloco.
-    // ==================================================
-
+    // Se encontrou outro herói, termina o bloco.
     const outroHeroi =
       encontrarHeroi(elemento.texto);
 
@@ -491,10 +471,7 @@ function extrairMudancasDoBlocoHeroi(
       break;
     }
 
-    // ==================================================
-    // TÍTULOS
-    // ==================================================
-
+    // Títulos
     if (elemento.tag.startsWith("h")) {
       const titulo =
         limparHTML(elemento.texto);
@@ -506,10 +483,7 @@ function extrairMudancasDoBlocoHeroi(
       continue;
     }
 
-    // ==================================================
-    // NOME DE HABILIDADE EM NEGRITO
-    // ==================================================
-
+    // Nome de habilidade em negrito
     if (
       (elemento.tag === "strong" ||
         elemento.tag === "b") &&
@@ -521,36 +495,7 @@ function extrairMudancasDoBlocoHeroi(
       continue;
     }
 
-    // ==================================================
-    // NOVA TENTATIVA:
-    // DIV / SPAN CURTO PODE SER NOME DE HABILIDADE
-    // ==================================================
-
-    if (
-      (elemento.tag === "div" ||
-        elemento.tag === "span") &&
-      pareceNomeDeHabilidade(elemento.texto)
-    ) {
-      const candidato =
-        limparHTML(elemento.texto);
-
-      // Evita pegar frases enormes ou elementos
-      // genéricos da interface como habilidade.
-      if (
-        candidato.length <= 80 &&
-        candidato.split(/\s+/).length <= 8
-      ) {
-        habilidadeAtual =
-          candidato;
-      }
-
-      continue;
-    }
-
-    // ==================================================
-    // MUDANÇA
-    // ==================================================
-
+    // Mudança
     if (
       elemento.tag === "li" ||
       elemento.tag === "p"
@@ -840,6 +785,10 @@ function baixarPagina(
             }
           },
           resposta => {
+            // ------------------------------------------
+            // REDIRECIONAMENTO
+            // ------------------------------------------
+
             if (
               resposta.statusCode >= 300 &&
               resposta.statusCode < 400 &&
@@ -861,6 +810,10 @@ function baixarPagina(
                 .catch(reject);
             }
 
+            // ------------------------------------------
+            // STATUS HTTP
+            // ------------------------------------------
+
             if (
               resposta.statusCode < 200 ||
               resposta.statusCode >= 300
@@ -873,6 +826,10 @@ function baixarPagina(
                 )
               );
             }
+
+            // ------------------------------------------
+            // RECEBE HTML
+            // ------------------------------------------
 
             let html = "";
 
@@ -931,6 +888,10 @@ function baixarPagina(
 async function obterDados() {
   const agora = Date.now();
 
+  // ------------------------------------------
+  // CACHE
+  // ------------------------------------------
+
   if (
     cache.dados &&
     agora - cache.atualizadoEm <
@@ -939,10 +900,18 @@ async function obterDados() {
     return cache.dados;
   }
 
+  // ------------------------------------------
+  // BAIXA PÁGINA
+  // ------------------------------------------
+
   const html =
     await baixarPagina(
       BLIZZARD_URL
     );
+
+  // ------------------------------------------
+  // EXTRAI ELEMENTOS
+  // ------------------------------------------
 
   const elementos =
     extrairElementosOrdenados(
@@ -957,6 +926,10 @@ async function obterDados() {
       "Não foi possível encontrar elementos na página da Blizzard."
     );
   }
+
+  // ------------------------------------------
+  // ENCONTRA MUDANÇAS
+  // ------------------------------------------
 
   const mudancas = [];
 
@@ -995,6 +968,10 @@ async function obterDados() {
     );
   }
 
+  // ------------------------------------------
+  // CRIA OBJETO DE HERÓIS
+  // ------------------------------------------
+
   const herois = {};
 
   for (const nome of HEROIS) {
@@ -1013,6 +990,10 @@ async function obterDados() {
         mudancasHeroi
       );
   }
+
+  // ------------------------------------------
+  // CORREÇÕES
+  // ------------------------------------------
 
   let correcoes = [];
 
@@ -1064,6 +1045,10 @@ async function obterDados() {
     ...new Set(correcoes)
   ];
 
+  // ------------------------------------------
+  // TEXTO
+  // ------------------------------------------
+
   const texto =
     criarTexto(
       mudancas
@@ -1074,6 +1059,10 @@ async function obterDados() {
       correcoes
     );
 
+  // ------------------------------------------
+  // PARTES
+  // ------------------------------------------
+
   const partes =
     dividirTexto(
       texto
@@ -1083,6 +1072,10 @@ async function obterDados() {
     dividirTexto(
       textoCorrecoes
     );
+
+  // ------------------------------------------
+  // RESULTADO
+  // ------------------------------------------
 
   const resultado = {
     fonte: BLIZZARD_URL,
@@ -1111,6 +1104,10 @@ async function obterDados() {
     partesCorrecoes
   };
 
+  // ------------------------------------------
+  // CACHE
+  // ------------------------------------------
+
   cache.dados =
     resultado;
 
@@ -1134,6 +1131,10 @@ const server =
             `http://${req.headers.host}`
           );
 
+        // ==================================================
+        // CABEÇALHOS PADRÃO
+        // ==================================================
+
         const headers = {
           "Content-Type":
             "application/json; charset=utf-8",
@@ -1144,6 +1145,10 @@ const server =
           "Access-Control-Allow-Methods":
             "GET, OPTIONS"
         };
+
+        // ==================================================
+        // OPTIONS
+        // ==================================================
 
         if (
           req.method ===
@@ -1156,6 +1161,10 @@ const server =
 
           return res.end();
         }
+
+        // ==================================================
+        // /
+        // ==================================================
 
         if (
           url.pathname === "/"
@@ -1196,6 +1205,10 @@ const server =
             )
           );
         }
+
+        // ==================================================
+        // /test-blizzard
+        // ==================================================
 
         if (
           url.pathname ===
@@ -1264,6 +1277,10 @@ const server =
           }
         }
 
+        // ==================================================
+        // /dados
+        // ==================================================
+
         if (
           url.pathname ===
           "/dados"
@@ -1308,6 +1325,10 @@ const server =
           }
         }
 
+        // ==================================================
+        // /patch
+        // ==================================================
+
         if (
           url.pathname ===
           "/patch"
@@ -1320,6 +1341,10 @@ const server =
               url.searchParams.get(
                 "hero"
               );
+
+            // ----------------------------------------------
+            // SEM HERÓI
+            // ----------------------------------------------
 
             if (!heroQuery) {
               res.writeHead(
@@ -1360,6 +1385,10 @@ const server =
               );
             }
 
+            // ----------------------------------------------
+            // PROCURA HERÓI
+            // ----------------------------------------------
+
             const nomeHeroi =
               encontrarHeroi(
                 heroQuery
@@ -1388,6 +1417,10 @@ const server =
                 )
               );
             }
+
+            // ----------------------------------------------
+            // RESULTADO DO HERÓI
+            // ----------------------------------------------
 
             const resultadoHeroi =
               dados.herois[
@@ -1429,6 +1462,10 @@ const server =
             );
           }
         }
+
+        // ==================================================
+        // 404
+        // ==================================================
 
         res.writeHead(
           404,
