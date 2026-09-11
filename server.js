@@ -6,11 +6,12 @@ function limparHTML(texto) {
   return texto
     .replace(/<script[\s\S]*?<\/script>/gi, " ")
     .replace(/<style[\s\S]*?<\/style>/gi, " ")
-    .replace(/<[^>]*>/g, " ")
+    .replace(/<[^>]*>/gi, " ")
     .replace(/&nbsp;/gi, " ")
     .replace(/&amp;/gi, "&")
     .replace(/&quot;/gi, '"')
     .replace(/&#39;/gi, "'")
+    .replace(/&#x27;/gi, "'")
     .replace(/&lt;/gi, "<")
     .replace(/&gt;/gi, ">")
     .replace(/\s+/g, " ")
@@ -27,9 +28,7 @@ function normalizar(texto) {
 
 function extrairTitulos(html) {
   const titulos = [];
-
-  const regex =
-    /<h[1-6][^>]*>([\s\S]*?)<\/h[1-6]>/gi;
+  const regex = /<h[1-6][^>]*>([\s\S]*?)<\/h[1-6]>/gi;
 
   let match;
 
@@ -57,8 +56,7 @@ function classificar(texto) {
     "mais vida",
     "mais cura",
     "recarga reduzida",
-    "reduzido tempo de recarga",
-    "reduzida recarga"
+    "tempo de recarga reduzido"
   ];
 
   const nerfs = [
@@ -73,7 +71,7 @@ function classificar(texto) {
     "menos vida",
     "menos cura",
     "recarga aumentada",
-    "aumentado tempo de recarga"
+    "tempo de recarga aumentado"
   ];
 
   if (
@@ -96,18 +94,43 @@ function classificar(texto) {
 }
 
 function criarTexto(lista) {
-  if (!lista || lista.length === 0) {
-    return "";
+  if (lista.length === 0) {
+    return "Nenhum resultado encontrado nesta atualização.";
   }
 
-  return lista
-    .map(item => {
-      return (
-        `🦸 **${item.hero}**\n` +
-        `${item.change}`
-      );
-    })
-    .join("\n\n");
+  let texto = "";
+
+  lista.forEach((item) => {
+    texto += `🦸 **${item.hero}**\n`;
+    texto += `${item.change}\n\n`;
+  });
+
+  return texto.trim();
+}
+
+function dividirTexto(texto, limite = 3500) {
+  const partes = [];
+  let atual = "";
+
+  const blocos = texto.split("\n\n");
+
+  for (const bloco of blocos) {
+    if ((atual + "\n\n" + bloco).length > limite) {
+      if (atual.length > 0) {
+        partes.push(atual.trim());
+      }
+
+      atual = bloco;
+    } else {
+      atual += (atual ? "\n\n" : "") + bloco;
+    }
+  }
+
+  if (atual.length > 0) {
+    partes.push(atual.trim());
+  }
+
+  return partes;
 }
 
 async function obterDados() {
@@ -137,8 +160,6 @@ async function obterDados() {
       normalizar("Correção de problemas")
   );
 
-  const herois = [];
-
   const nomesHerois = [
     "D.Va",
     "Domina",
@@ -165,8 +186,9 @@ async function obterDados() {
     "Ana"
   ];
 
-  for (const nome of nomesHerois) {
+  const herois = [];
 
+  for (const nome of nomesHerois) {
     const regexHeroi = new RegExp(
       `<h[1-6][^>]*>\\s*${nome.replace(
         /[.*+?^${}()|[\]\\]/g,
@@ -181,12 +203,12 @@ async function obterDados() {
       continue;
     }
 
-    const inicioHeroi =
-      matchHeroi.index +
-      matchHeroi[0].length;
+    const inicioHeroi = matchHeroi.index;
 
     const depoisHeroi =
-      html.substring(inicioHeroi);
+      html.substring(
+        inicioHeroi + matchHeroi[0].length
+      );
 
     const proximoTitulo =
       /<h[1-6][^>]*>[\s\S]*?<\/h[1-6]>/i.exec(
@@ -202,32 +224,36 @@ async function obterDados() {
 
     const texto = limparHTML(trecho);
 
-    if (texto.length > 0) {
-
-      const tipo = classificar(texto);
-
-      herois.push({
-        hero: nome,
-        tipo: tipo,
-        change: texto.substring(0, 1000)
-      });
+    if (texto.length === 0) {
+      continue;
     }
+
+    herois.push({
+      hero: nome,
+      tipo: classificar(texto),
+      change: texto.substring(0, 1000)
+    });
   }
 
-  const buffs =
-    herois.filter(
-      item => item.tipo === "buff"
-    );
+  const buffs = herois.filter(
+    item => item.tipo === "buff"
+  );
 
-  const nerfs =
-    herois.filter(
-      item => item.tipo === "nerf"
-    );
+  const nerfs = herois.filter(
+    item => item.tipo === "nerf"
+  );
 
-  const alteracoes =
-    herois.filter(
-      item => item.tipo === "alteracao"
-    );
+  const alteracoes = herois.filter(
+    item => item.tipo === "alteracao"
+  );
+
+  const buffsTexto = criarTexto(buffs);
+  const nerfsTexto = criarTexto(nerfs);
+  const alteracoesTexto = criarTexto(alteracoes);
+
+  const buffsPartes = dividirTexto(buffsTexto);
+  const nerfsPartes = dividirTexto(nerfsTexto);
+  const alteracoesPartes = dividirTexto(alteracoesTexto);
 
   let patch = "Patch Notes";
 
@@ -236,7 +262,6 @@ async function obterDados() {
   }
 
   return {
-
     status: "ok",
 
     blizzardStatus: response.status,
@@ -244,102 +269,116 @@ async function obterDados() {
     patch: patch,
 
     buffs: buffs,
-
     nerfs: nerfs,
-
     alteracoes: alteracoes,
 
-    buffsTexto: criarTexto(buffs),
+    buffsTexto: buffsTexto,
+    nerfsTexto: nerfsTexto,
+    alteracoesTexto: alteracoesTexto,
 
-    nerfsTexto: criarTexto(nerfs),
-
-    alteracoesTexto: criarTexto(alteracoes),
+    buffsPartes: buffsPartes,
+    nerfsPartes: nerfsPartes,
+    alteracoesPartes: alteracoesPartes,
 
     quantidadeDeBuffs: buffs.length,
-
     quantidadeDeNerfs: nerfs.length,
+    quantidadeDeAlteracoes: alteracoes.length,
 
-    quantidadeDeAlteracoes:
-      alteracoes.length,
+    quantidadeDePartesBuffs: buffsPartes.length,
+    quantidadeDePartesNerfs: nerfsPartes.length,
+    quantidadeDePartesAlteracoes: alteracoesPartes.length,
 
     secaoDeCorrecoesEncontrada:
       indiceCorrecoes !== -1
   };
 }
 
-const server = http.createServer(
-  async (req, res) => {
+const server = http.createServer(async (req, res) => {
+  res.setHeader(
+    "Content-Type",
+    "application/json; charset=utf-8"
+  );
 
-    res.setHeader(
-      "Content-Type",
-      "application/json; charset=utf-8"
+  if (req.url === "/") {
+    res.writeHead(200);
+
+    res.end(
+      JSON.stringify({
+        status: "online",
+        message:
+          "Overwatch Patch API está funcionando!"
+      })
     );
 
-    if (req.url === "/") {
+    return;
+  }
+
+  if (req.url === "/test-blizzard") {
+    try {
+      const response = await fetch(
+        "https://overwatch.blizzard.com/pt-br/news/patch-notes/"
+      );
+
+      const html = await response.text();
 
       res.writeHead(200);
 
       res.end(
         JSON.stringify({
-          status: "online",
-          message:
-            "Overwatch Patch API está funcionando!"
+          status: "ok",
+          blizzardStatus: response.status,
+          tamanhoDaPagina: html.length
         })
       );
+    } catch (error) {
+      res.writeHead(500);
 
-      return;
+      res.end(
+        JSON.stringify({
+          status: "error",
+          message: error.message
+        })
+      );
     }
 
-    if (req.url === "/dados") {
+    return;
+  }
 
-      try {
+  if (req.url === "/dados") {
+    try {
+      const dados = await obterDados();
 
-        const dados =
-          await obterDados();
+      res.writeHead(200);
 
-        res.writeHead(200);
+      res.end(
+        JSON.stringify(dados, null, 2)
+      );
+    } catch (error) {
+      res.writeHead(500);
 
-        res.end(
-          JSON.stringify(
-            dados,
-            null,
-            2
-          )
-        );
-
-      } catch (error) {
-
-        res.writeHead(500);
-
-        res.end(
-          JSON.stringify({
-            status: "error",
-            message: error.message
-          }, null, 2)
-        );
-      }
-
-      return;
+      res.end(
+        JSON.stringify({
+          status: "error",
+          message: error.message
+        }, null, 2)
+      );
     }
 
-    res.writeHead(404);
-
-    res.end(
-      JSON.stringify({
-        status: "error",
-        message:
-          "Rota não encontrada"
-      })
-    );
+    return;
   }
-);
 
-server.listen(
-  PORT,
-  "0.0.0.0",
-  () => {
-    console.log(
-      `API funcionando na porta ${PORT}`
-    );
-  }
-);
+  res.writeHead(404);
+
+  res.end(
+    JSON.stringify({
+      status: "error",
+      message: "Rota não encontrada"
+    })
+  );
+});
+
+server.listen(PORT, "0.0.0.0", () => {
+  console.log(
+    `API funcionando na porta ${PORT}`
+  );
+});
