@@ -1,4 +1,4 @@
-const http = require("http");
+const https = require("https");
 
 const PORT = process.env.PORT || 3000;
 
@@ -132,7 +132,6 @@ function classificarMudanca(texto) {
     "reduzidas",
     "diminuido",
     "diminuida",
-    "diminuida",
     "diminuiram",
     "perdeu",
     "perde",
@@ -183,7 +182,6 @@ function pareceMudanca(texto) {
     "dano",
     "tempo",
     "recarga",
-    "municao",
     "municao",
     "alcance",
     "velocidade",
@@ -326,10 +324,6 @@ function extrairMudancasDoBlocoHeroi(
   for (let i = indiceInicial + 1; i < elementos.length; i++) {
     const elemento = elementos[i];
 
-    // --------------------------------------------------
-    // Se encontrar outro herói, termina
-    // --------------------------------------------------
-
     const heroiEncontrado = nomesHerois.find(
       nome => normalizar(nome) === normalizar(elemento.texto)
     );
@@ -342,10 +336,6 @@ function extrairMudancasDoBlocoHeroi(
       break;
     }
 
-    // --------------------------------------------------
-    // Títulos
-    // --------------------------------------------------
-
     if (elemento.tag.startsWith("h")) {
       const textoTitulo = limparHTML(elemento.texto);
 
@@ -356,10 +346,6 @@ function extrairMudancasDoBlocoHeroi(
       continue;
     }
 
-    // --------------------------------------------------
-    // Negrito / strong dentro do conteúdo
-    // --------------------------------------------------
-
     if (
       (elemento.tag === "strong" || elemento.tag === "b") &&
       pareceNomeDeHabilidade(elemento.texto)
@@ -367,10 +353,6 @@ function extrairMudancasDoBlocoHeroi(
       habilidadeAtual = limparHTML(elemento.texto);
       continue;
     }
-
-    // --------------------------------------------------
-    // Mudanças
-    // --------------------------------------------------
 
     if (elemento.tag === "li" || elemento.tag === "p") {
       const texto = limparHTML(elemento.texto);
@@ -542,7 +524,8 @@ function extrairSecaoPorTitulo(html, titulo) {
   }
 
   return restante.substring(0, fim);
-      }
+}
+
 // ======================================================
 // OBTÉM OS DADOS DA BLIZZARD
 // ======================================================
@@ -550,7 +533,6 @@ function extrairSecaoPorTitulo(html, titulo) {
 async function obterDados() {
   const agora = Date.now();
 
-  // Usa cache se ainda estiver válido
   if (
     cache.dados &&
     agora - cache.atualizadoEm < CACHE_TIME
@@ -559,7 +541,7 @@ async function obterDados() {
   }
 
   return new Promise((resolve, reject) => {
-    const requisicao = http.get(
+    const requisicao = https.get(
       BLIZZARD_URL,
       {
         headers: {
@@ -567,7 +549,8 @@ async function obterDados() {
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/140 Safari/537.36",
           "Accept":
             "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-          "Accept-Language": "pt-BR,pt;q=0.9,en;q=0.8"
+          "Accept-Language":
+            "pt-BR,pt;q=0.9,en;q=0.8"
         }
       },
       resposta => {
@@ -600,10 +583,6 @@ async function obterDados() {
 
             const mudancas = [];
 
-            // ==========================================
-            // LOCALIZA CADA HERÓI
-            // ==========================================
-
             for (let i = 0; i < elementos.length; i++) {
               const elemento = elementos[i];
 
@@ -630,8 +609,7 @@ async function obterDados() {
                 );
 
               mudancas.push(...mudancasHeroi);
-            }
-
+                            }
             // ==========================================
             // ORGANIZA POR HERÓI
             // ==========================================
@@ -685,7 +663,6 @@ async function obterDados() {
               }
             }
 
-            // Remove duplicados
             correcoes = [
               ...new Set(correcoes)
             ];
