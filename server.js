@@ -2,12 +2,6 @@ const http = require("http");
 
 const PORT = process.env.PORT || 10000;
 
-/*
-==================================================
-LIMPA HTML
-==================================================
-*/
-
 function limparHTML(texto) {
   return texto
     .replace(/<script[\s\S]*?<\/script>/gi, " ")
@@ -24,12 +18,6 @@ function limparHTML(texto) {
     .trim();
 }
 
-/*
-==================================================
-NORMALIZA TEXTO
-==================================================
-*/
-
 function normalizar(texto) {
   return texto
     .normalize("NFD")
@@ -37,12 +25,6 @@ function normalizar(texto) {
     .toLowerCase()
     .trim();
 }
-
-/*
-==================================================
-EXTRAI TÍTULOS
-==================================================
-*/
 
 function extrairTitulos(html) {
   const titulos = [];
@@ -62,12 +44,6 @@ function extrairTitulos(html) {
 
   return titulos;
 }
-
-/*
-==================================================
-CLASSIFICA UMA ALTERAÇÃO
-==================================================
-*/
 
 function classificarMudanca(texto) {
   const t = normalizar(texto);
@@ -217,12 +193,6 @@ function classificarMudanca(texto) {
   return "alteracao";
 }
 
-/*
-==================================================
-EXTRAI ALTERAÇÕES INDIVIDUAIS
-==================================================
-*/
-
 function extrairMudancas(trecho) {
   const mudancas = [];
 
@@ -271,12 +241,6 @@ function extrairMudancas(trecho) {
   return mudancas;
 }
 
-/*
-==================================================
-SEPARA MUDANÇAS
-==================================================
-*/
-
 function separarMudancas(hero, mudancas) {
   const resultado = [];
 
@@ -291,12 +255,6 @@ function separarMudancas(hero, mudancas) {
   return resultado;
 }
 
-/*
-==================================================
-CRIA TEXTO
-==================================================
-*/
-
 function criarTexto(lista) {
   if (lista.length === 0) {
     return "Nenhum resultado encontrado nesta atualização.";
@@ -306,9 +264,7 @@ function criarTexto(lista) {
   let ultimoHeroi = "";
 
   lista.forEach((item) => {
-
     if (item.hero !== ultimoHeroi) {
-
       if (texto !== "") {
         texto += "\n";
       }
@@ -334,12 +290,6 @@ function criarTexto(lista) {
   return texto.trim();
 }
 
-/*
-==================================================
-CRIA TEXTO DE CORREÇÕES
-==================================================
-*/
-
 function criarTextoCorrecoes(lista) {
   if (lista.length === 0) {
     return "Nenhuma correção encontrada nesta atualização.";
@@ -350,12 +300,6 @@ function criarTextoCorrecoes(lista) {
     .join("\n");
 }
 
-/*
-==================================================
-DIVIDE TEXTO
-==================================================
-*/
-
 function dividirTexto(texto, limite = 3500) {
   const partes = [];
 
@@ -364,20 +308,18 @@ function dividirTexto(texto, limite = 3500) {
   const blocos = texto.split("\n\n");
 
   for (const bloco of blocos) {
-
     if (
       (atual + "\n\n" + bloco).length >
       limite
     ) {
-
       if (atual.length > 0) {
         partes.push(atual.trim());
       }
 
       atual = bloco;
+    }
 
-    } else {
-
+    else {
       atual +=
         (atual ? "\n\n" : "") +
         bloco;
@@ -391,21 +333,13 @@ function dividirTexto(texto, limite = 3500) {
   return partes;
 }
 
-/*
-==================================================
-ENCONTRA UMA SEÇÃO PELO TÍTULO
-==================================================
-*/
-
 function extrairSecaoPorTitulo(html, tituloProcurado) {
-
   const regexTitulo =
     /<h[1-6][^>]*>([\s\S]*?)<\/h[1-6]>/gi;
 
   let match;
 
   while ((match = regexTitulo.exec(html)) !== null) {
-
     const titulo =
       limparHTML(match[1]);
 
@@ -413,7 +347,6 @@ function extrairSecaoPorTitulo(html, tituloProcurado) {
       normalizar(titulo) ===
       normalizar(tituloProcurado)
     ) {
-
       const inicio =
         match.index + match[0].length;
 
@@ -438,14 +371,7 @@ function extrairSecaoPorTitulo(html, tituloProcurado) {
   return "";
 }
 
-/*
-==================================================
-OBTER DADOS DA BLIZZARD
-==================================================
-*/
-
 async function obterDados() {
-
   const response =
     await fetch(
       "https://overwatch.blizzard.com/pt-br/news/patch-notes/"
@@ -477,12 +403,6 @@ async function obterDados() {
         normalizar("Correção de problemas")
     );
 
-  /*
-  ================================================
-  LISTA DE HERÓIS
-  ================================================
-  */
-
   const nomesHerois = [
     "D.Va",
     "Domina",
@@ -509,16 +429,9 @@ async function obterDados() {
     "Ana"
   ];
 
-  /*
-  ================================================
-  TODAS AS MUDANÇAS
-  ================================================
-  */
-
   const todasMudancas = [];
 
   for (const nome of nomesHerois) {
-
     const regexHeroi =
       new RegExp(
         `<h[1-6][^>]*>\\s*${nome.replace(
@@ -573,12 +486,6 @@ async function obterDados() {
     );
   }
 
-  /*
-  ================================================
-  BUFFS / NERFS / ALTERAÇÕES
-  ================================================
-  */
-
   const buffs =
     todasMudancas.filter(
       item => item.tipo === "buff"
@@ -594,12 +501,6 @@ async function obterDados() {
       item => item.tipo === "alteracao"
     );
 
-  /*
-  ================================================
-  TEXTOS
-  ================================================
-  */
-
   const buffsTexto =
     criarTexto(buffs);
 
@@ -608,12 +509,6 @@ async function obterDados() {
 
   const alteracoesTexto =
     criarTexto(alteracoes);
-
-  /*
-  ================================================
-  CORREÇÕES
-  ================================================
-  */
 
   const trechoCorrecoes =
     extrairSecaoPorTitulo(
@@ -631,14 +526,9 @@ async function obterDados() {
       correcoes
     );
 
-  /*
-  ================================================
-  TUDO
-  ================================================
-  */
-
   const tudoLista = [
     ...todasMudancas,
+
     ...correcoes.map(correcao => ({
       hero: "Correções",
       tipo: "alteracao",
@@ -649,32 +539,30 @@ async function obterDados() {
   const tudoTexto =
     criarTexto(tudoLista);
 
-  /*
-  ================================================
-  PARTES
-  ================================================
-  */
-
   const buffsPartes =
-    dividirTexto(buffsTexto);
+    dividirTexto(
+      buffsTexto
+    );
 
   const nerfsPartes =
-    dividirTexto(nerfsTexto);
+    dividirTexto(
+      nerfsTexto
+    );
 
   const alteracoesPartes =
-    dividirTexto(alteracoesTexto);
+    dividirTexto(
+      alteracoesTexto
+    );
 
   const correcoesPartes =
-    dividirTexto(correcoesTexto);
+    dividirTexto(
+      correcoesTexto
+    );
 
   const tudoPartes =
-    dividirTexto(tudoTexto);
-
-  /*
-  ================================================
-  NOME DO PATCH
-  ================================================
-  */
+    dividirTexto(
+      tudoTexto
+    );
 
   let patch =
     "Patch Notes";
@@ -684,14 +572,7 @@ async function obterDados() {
       titulos[indiceHerois - 1];
   }
 
-  /*
-  ================================================
-  RETORNO
-  ================================================
-  */
-
   return {
-
     status: "ok",
 
     blizzardStatus:
@@ -787,12 +668,6 @@ async function obterDados() {
   };
 }
 
-/*
-==================================================
-SERVIDOR
-==================================================
-*/
-
 const server =
   http.createServer(
     async (req, res) => {
@@ -802,14 +677,7 @@ const server =
         "application/json; charset=utf-8"
       );
 
-      /*
-      ==============================================
-      ROTA /
-      ==============================================
-      */
-
       if (req.url === "/") {
-
         res.writeHead(200);
 
         res.end(
@@ -823,18 +691,10 @@ const server =
         return;
       }
 
-      /*
-      ==============================================
-      TESTE BLIZZARD
-      ==============================================
-      */
-
       if (
         req.url === "/test-blizzard"
       ) {
-
         try {
-
           const response =
             await fetch(
               "https://overwatch.blizzard.com/pt-br/news/patch-notes/"
@@ -856,7 +716,6 @@ const server =
           );
 
         } catch (error) {
-
           res.writeHead(500);
 
           res.end(
@@ -871,16 +730,8 @@ const server =
         return;
       }
 
-      /*
-      ==============================================
-      ROTA /dados
-      ==============================================
-      */
-
       if (req.url === "/dados") {
-
         try {
-
           const dados =
             await obterDados();
 
@@ -895,7 +746,6 @@ const server =
           );
 
         } catch (error) {
-
           res.writeHead(500);
 
           res.end(
@@ -914,16 +764,8 @@ const server =
         return;
       }
 
-      /*
-      ==============================================
-      ROTA /patch
-      ==============================================
-      */
-
       if (req.url.startsWith("/patch")) {
-
         try {
-
           const url =
             new URL(
               req.url,
@@ -934,7 +776,6 @@ const server =
             url.searchParams.get("hero");
 
           if (!nomeHeroi) {
-
             res.writeHead(400);
 
             res.end(
@@ -962,7 +803,6 @@ const server =
             );
 
           if (resultados.length === 0) {
-
             res.writeHead(404);
 
             res.end(
@@ -988,14 +828,19 @@ const server =
             JSON.stringify(
               {
                 status: "ok",
+
                 hero:
                   resultados[0].hero,
+
                 mudancas:
                   resultados,
+
                 texto:
                   texto,
+
                 partes:
                   partes,
+
                 quantidade:
                   resultados.length
               },
@@ -1005,7 +850,6 @@ const server =
           );
 
         } catch (error) {
-
           res.writeHead(500);
 
           res.end(
@@ -1024,12 +868,6 @@ const server =
         return;
       }
 
-      /*
-      ==============================================
-      ROTA NÃO ENCONTRADA
-      ==============================================
-      */
-
       res.writeHead(404);
 
       res.end(
@@ -1042,20 +880,12 @@ const server =
     }
   );
 
-/*
-==================================================
-INICIA SERVIDOR
-==================================================
-*/
-
 server.listen(
   PORT,
   "0.0.0.0",
   () => {
-
     console.log(
       `API funcionando na porta ${PORT}`
     );
-
   }
-);w
+);
