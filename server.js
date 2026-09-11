@@ -40,6 +40,38 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  if (req.url === "/buffs") {
+    try {
+      const response = await fetch(
+        "https://overwatch.blizzard.com/pt-br/news/patch-notes/"
+      );
+
+      const html = await response.text();
+
+      res.writeHead(200);
+      res.end(JSON.stringify({
+        status: "ok",
+        patch: "Patch Notes oficial",
+        buffs: [
+          {
+            hero: "Dados da Blizzard recebidos",
+            change: "A página oficial foi acessada com sucesso."
+          }
+        ],
+        paginaRecebida: html.length
+      }));
+
+    } catch (error) {
+      res.writeHead(500);
+      res.end(JSON.stringify({
+        status: "error",
+        message: error.message
+      }));
+    }
+
+    return;
+  }
+
   res.writeHead(404);
   res.end(JSON.stringify({
     status: "error",
