@@ -11,6 +11,8 @@ function limparHTML(texto) {
     .replace(/&amp;/gi, "&")
     .replace(/&quot;/gi, '"')
     .replace(/&#39;/gi, "'")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -25,7 +27,9 @@ function normalizar(texto) {
 
 function extrairTitulos(html) {
   const titulos = [];
-  const regex = /<h[1-6][^>]*>([\s\S]*?)<\/h[1-6]>/gi;
+
+  const regex =
+    /<h[1-6][^>]*>([\s\S]*?)<\/h[1-6]>/gi;
 
   let match;
 
@@ -52,9 +56,9 @@ function classificar(texto) {
     "mais dano",
     "mais vida",
     "mais cura",
+    "recarga reduzida",
     "reduzido tempo de recarga",
-    "reduzida recarga",
-    "recarga reduzida"
+    "reduzida recarga"
   ];
 
   const nerfs = [
@@ -68,19 +72,42 @@ function classificar(texto) {
     "menos dano",
     "menos vida",
     "menos cura",
-    "aumentado tempo de recarga",
-    "recarga aumentada"
+    "recarga aumentada",
+    "aumentado tempo de recarga"
   ];
 
-  if (buffs.some(palavra => t.includes(normalizar(palavra)))) {
+  if (
+    buffs.some(palavra =>
+      t.includes(normalizar(palavra))
+    )
+  ) {
     return "buff";
   }
 
-  if (nerfs.some(palavra => t.includes(normalizar(palavra)))) {
+  if (
+    nerfs.some(palavra =>
+      t.includes(normalizar(palavra))
+    )
+  ) {
     return "nerf";
   }
 
   return "alteracao";
+}
+
+function criarTexto(lista) {
+  if (!lista || lista.length === 0) {
+    return "";
+  }
+
+  return lista
+    .map(item => {
+      return (
+        `🦸 **${item.hero}**\n` +
+        `${item.change}`
+      );
+    })
+    .join("\n\n");
 }
 
 async function obterDados() {
@@ -139,22 +166,12 @@ async function obterDados() {
   ];
 
   for (const nome of nomesHerois) {
-    const indice = titulos.findIndex(
-      titulo =>
-        normalizar(titulo) === normalizar(nome)
-    );
-
-    if (indice === -1) {
-      continue;
-    }
-
-    let inicio = html.toLowerCase().indexOf(
-      `<h`,
-      0
-    );
 
     const regexHeroi = new RegExp(
-      `<h[1-6][^>]*>\\s*${nome.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*<\\/h[1-6]>`,
+      `<h[1-6][^>]*>\\s*${nome.replace(
+        /[.*+?^${}()|[\]\\]/g,
+        "\\$&"
+      )}\\s*<\\/h[1-6]>`,
       "i"
     );
 
@@ -164,10 +181,12 @@ async function obterDados() {
       continue;
     }
 
-    const inicioHeroi = matchHeroi.index;
-    const depoisHeroi = html.substring(
-      inicioHeroi + matchHeroi[0].length
-    );
+    const inicioHeroi =
+      matchHeroi.index +
+      matchHeroi[0].length;
+
+    const depoisHeroi =
+      html.substring(inicioHeroi);
 
     const proximoTitulo =
       /<h[1-6][^>]*>[\s\S]*?<\/h[1-6]>/i.exec(
@@ -184,6 +203,7 @@ async function obterDados() {
     const texto = limparHTML(trecho);
 
     if (texto.length > 0) {
+
       const tipo = classificar(texto);
 
       herois.push({
@@ -194,17 +214,20 @@ async function obterDados() {
     }
   }
 
-  const buffs = herois.filter(
-    item => item.tipo === "buff"
-  );
+  const buffs =
+    herois.filter(
+      item => item.tipo === "buff"
+    );
 
-  const nerfs = herois.filter(
-    item => item.tipo === "nerf"
-  );
+  const nerfs =
+    herois.filter(
+      item => item.tipo === "nerf"
+    );
 
-  const alteracoes = herois.filter(
-    item => item.tipo === "alteracao"
-  );
+  const alteracoes =
+    herois.filter(
+      item => item.tipo === "alteracao"
+    );
 
   let patch = "Patch Notes";
 
@@ -213,75 +236,110 @@ async function obterDados() {
   }
 
   return {
+
     status: "ok",
+
     blizzardStatus: response.status,
+
     patch: patch,
+
     buffs: buffs,
+
     nerfs: nerfs,
+
     alteracoes: alteracoes,
+
+    buffsTexto: criarTexto(buffs),
+
+    nerfsTexto: criarTexto(nerfs),
+
+    alteracoesTexto: criarTexto(alteracoes),
+
     quantidadeDeBuffs: buffs.length,
+
     quantidadeDeNerfs: nerfs.length,
-    quantidadeDeAlteracoes: alteracoes.length,
+
+    quantidadeDeAlteracoes:
+      alteracoes.length,
+
     secaoDeCorrecoesEncontrada:
       indiceCorrecoes !== -1
   };
 }
 
-const server = http.createServer(async (req, res) => {
+const server = http.createServer(
+  async (req, res) => {
 
-  res.setHeader(
-    "Content-Type",
-    "application/json; charset=utf-8"
-  );
+    res.setHeader(
+      "Content-Type",
+      "application/json; charset=utf-8"
+    );
 
-  if (req.url === "/") {
-    res.writeHead(200);
-
-    res.end(JSON.stringify({
-      status: "online",
-      message: "Overwatch Patch API está funcionando!"
-    }, null, 2));
-
-    return;
-  }
-
-  if (req.url === "/dados") {
-    try {
-      const dados = await obterDados();
+    if (req.url === "/") {
 
       res.writeHead(200);
 
       res.end(
-        JSON.stringify(
-          dados,
-          null,
-          2
-        )
+        JSON.stringify({
+          status: "online",
+          message:
+            "Overwatch Patch API está funcionando!"
+        })
       );
 
-    } catch (error) {
-
-      res.writeHead(500);
-
-      res.end(JSON.stringify({
-        status: "error",
-        message: error.message
-      }, null, 2));
+      return;
     }
 
-    return;
+    if (req.url === "/dados") {
+
+      try {
+
+        const dados =
+          await obterDados();
+
+        res.writeHead(200);
+
+        res.end(
+          JSON.stringify(
+            dados,
+            null,
+            2
+          )
+        );
+
+      } catch (error) {
+
+        res.writeHead(500);
+
+        res.end(
+          JSON.stringify({
+            status: "error",
+            message: error.message
+          }, null, 2)
+        );
+      }
+
+      return;
+    }
+
+    res.writeHead(404);
+
+    res.end(
+      JSON.stringify({
+        status: "error",
+        message:
+          "Rota não encontrada"
+      })
+    );
   }
+);
 
-  res.writeHead(404);
-
-  res.end(JSON.stringify({
-    status: "error",
-    message: "Rota não encontrada"
-  }));
-});
-
-server.listen(PORT, "0.0.0.0", () => {
-  console.log(
-    `API funcionando na porta ${PORT}`
-  );
-});
+server.listen(
+  PORT,
+  "0.0.0.0",
+  () => {
+    console.log(
+      `API funcionando na porta ${PORT}`
+    );
+  }
+);
