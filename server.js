@@ -906,6 +906,28 @@ async function obterDados() {
   const separados = separarMudancas(mudancas);
   const correcoes = extrairCorrecoes(html);
 
+  const textoBuffs = criarTexto(
+    separados.buffs
+  );
+
+  const textoNerfs = criarTexto(
+    separados.nerfs
+  );
+
+  const textoAlteracoes = criarTexto(
+    separados.alteracoes
+  );
+
+  const textoCorrecoes =
+    criarTextoCorrecoes(correcoes);
+
+  const textoTudo = [
+    criarTexto(mudancas),
+    textoCorrecoes
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+
   const dados = {
     sucesso: true,
     fonte: BLIZZARD_URL,
@@ -923,8 +945,29 @@ async function obterDados() {
 
     texto: criarTexto(mudancas),
 
-    textoCorrecoes:
-      criarTextoCorrecoes(correcoes)
+    textoBuffs,
+
+    textoNerfs,
+
+    textoAlteracoes,
+
+    textoTudo,
+
+    textoCorrecoes,
+
+    // Compatibilidade com os comandos do BDFD
+    buffsPartes: dividirTexto(textoBuffs),
+
+    nerfsPartes: dividirTexto(textoNerfs),
+
+    alteracoesPartes:
+      dividirTexto(textoAlteracoes),
+
+    correcoesPartes:
+      dividirTexto(textoCorrecoes),
+
+    tudoPartes:
+      dividirTexto(textoTudo)
   };
 
   cache = {
@@ -1152,10 +1195,10 @@ server.listen(PORT, () => {
   );
 
   console.log(
-    `Endpoint: /patch`
+    "Endpoint: /patch"
   );
 
   console.log(
-    `Endpoint: /patch?hero=D.Va`
+    "Endpoint: /patch?hero=D.Va"
   );
 });
