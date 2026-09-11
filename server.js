@@ -14,7 +14,7 @@ let cache = {
 };
 
 // ======================================================
-// HERÓIS ATUAIS
+// HERÓIS
 // ======================================================
 
 const HEROIS = [
@@ -74,50 +74,38 @@ const HEROIS = [
 ];
 
 // ======================================================
-// LIMPEZA HTML
+// LIMPA HTML
 // ======================================================
 
 function limparHTML(texto) {
   if (!texto) return "";
 
-  return String(texto)
-    .replace(/<script[\s\S]*?<\/script>/gi, "")
-    .replace(/<style[\s\S]*?<\/style>/gi, "")
-    .replace(/<!--[\s\S]*?-->/g, "")
-    .replace(/<br\s*\/?>/gi, "\n")
-    .replace(/<\/p>/gi, "\n")
-    .replace(/<\/li>/gi, "\n")
-    .replace(/<\/div>/gi, "\n")
-    .replace(/<\/section>/gi, "\n")
-    .replace(/<\/article>/gi, "\n")
-    .replace(/<\/h[1-6]>/gi, "\n")
-    .replace(/<[^>]+>/g, "")
+  return texto
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<!--[\s\S]*?-->/g, " ")
+    .replace(/<[^>]+>/g, " ")
     .replace(/&nbsp;/gi, " ")
     .replace(/&amp;/gi, "&")
     .replace(/&quot;/gi, '"')
     .replace(/&#39;/gi, "'")
-    .replace(/&apos;/gi, "'")
     .replace(/&lt;/gi, "<")
     .replace(/&gt;/gi, ">")
-    .replace(/&#x27;/gi, "'")
-    .replace(/&#x2F;/gi, "/")
-    .replace(/&#(\d+);/g, (_, numero) => {
+    .replace(/&#(\d+);/g, (_, n) => {
       try {
-        return String.fromCharCode(Number(numero));
+        return String.fromCharCode(Number(n));
       } catch {
-        return "";
+        return " ";
       }
     })
     .replace(/\r/g, "")
     .replace(/[ \t]+/g, " ")
-    .replace(/[ \t]+\n/g, "\n")
-    .replace(/\n[ \t]+/g, "\n")
-    .replace(/\n{3,}/g, "\n\n")
+    .replace(/\n\s*\n+/g, "\n")
     .trim();
 }
 
 // ======================================================
-// NORMALIZAÇÃO
+// NORMALIZA TEXTO
 // ======================================================
 
 function normalizar(texto) {
@@ -125,7 +113,7 @@ function normalizar(texto) {
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
-    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .replace(/[^a-z0-9]+/g, " ")
     .trim();
 }
 
@@ -134,10 +122,7 @@ function normalizar(texto) {
 // ======================================================
 
 function escaparRegex(texto) {
-  return String(texto).replace(
-    /[.*+?^${}()|[\]\\]/g,
-    "\\$&"
-  );
+  return texto.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 // ======================================================
@@ -147,17 +132,19 @@ function escaparRegex(texto) {
 function encontrarHeroi(texto) {
   const normalizado = normalizar(texto);
 
-  if (!normalizado) {
-    return null;
+  if (!normalizado) return null;
+
+  for (const heroi of HEROIS) {
+    if (normalizado === normalizar(heroi)) {
+      return heroi;
+    }
   }
 
-  return HEROIS.find(
-    hero => normalizar(hero) === normalizado
-  ) || null;
+  return null;
 }
 
 // ======================================================
-// CLASSIFICAÇÃO
+// CLASSIFICA MUDANÇA
 // ======================================================
 
 function classificarMudanca(texto) {
@@ -171,27 +158,23 @@ function classificarMudanca(texto) {
     "diminuiu",
     "diminuido",
     "diminuida",
-    "diminuiram",
-    "diminuicao",
-    "reduzimos",
-    "reduzimos de",
-    "reduzimos para",
-    "reduzida para",
-    "reduzido para",
-    "menor",
-    "menos dano",
-    "menos cura",
-    "mais lento",
-    "mais lenta",
-    "recuperacao aumentada",
+    "diminuem",
+    "menos",
+    "aumentado o tempo de recarga",
+    "aumentado",
+    "aumentada",
+    "aumentados",
+    "aumentadas",
+    "recarga aumentada",
     "tempo de recarga aumentado",
-    "tempo de recarga aumentada",
-    "custo aumentado",
-    "custo aumentada",
-    "removido",
-    "removida",
-    "removidos",
-    "removidas"
+    "dano reduzido",
+    "dano diminuido",
+    "vida reduzida",
+    "duracao reduzida",
+    "alcance reduzido",
+    "velocidade reduzida",
+    "efeito reduzido",
+    "reduzido para"
   ];
 
   const buffs = [
@@ -199,183 +182,134 @@ function classificarMudanca(texto) {
     "aumentada",
     "aumentados",
     "aumentadas",
-    "aumentamos",
-    "aumentamos de",
-    "aumentamos para",
     "aumentou",
-    "aumento de",
-    "maior",
-    "mais dano",
-    "mais cura",
-    "mais rapido",
-    "mais rapida",
+    "aumentam",
+    "mais",
+    "dano aumentado",
+    "dano aumentado para",
+    "vida aumentada",
+    "duracao aumentada",
+    "alcance aumentado",
+    "velocidade aumentada",
+    "efeito aumentado",
     "tempo de recarga reduzido",
-    "tempo de recarga reduzida",
-    "ganhou",
-    "ganha",
-    "recebeu",
-    "recebe",
-    "melhorado",
-    "melhorada",
-    "melhorados",
-    "melhoradas"
+    "recarga reduzida",
+    "reduzido em"
   ];
 
-  for (const palavra of nerfs) {
-    if (t.includes(palavra)) {
-      return "nerf";
-    }
+  if (nerfs.some(palavra => t.includes(palavra))) {
+    return "nerf";
   }
 
-  for (const palavra of buffs) {
-    if (t.includes(palavra)) {
-      return "buff";
-    }
+  if (buffs.some(palavra => t.includes(palavra))) {
+    return "buff";
   }
 
   return "ajuste";
 }
 
 // ======================================================
-// IDENTIFICA SE É UMA MUDANÇA
+// VERIFICA SE PARECE UMA MUDANÇA
 // ======================================================
 
 function pareceMudanca(texto) {
   const t = normalizar(texto);
 
-  if (!t) {
-    return false;
-  }
+  if (!t) return false;
 
   const palavras = [
-    "aumentado",
-    "aumentada",
-    "aumentados",
-    "aumentadas",
-    "aumentamos",
-    "aumentou",
-    "aumento",
+    "dano",
+    "vida",
+    "armadura",
+    "escudo",
+    "recarga",
+    "tempo",
+    "duracao",
+    "alcance",
+    "velocidade",
     "reduzido",
     "reduzida",
     "reduzidos",
     "reduzidas",
-    "reduzimos",
-    "reduziu",
-    "reducao",
+    "aumentado",
+    "aumentada",
+    "aumentados",
+    "aumentadas",
+    "aumentou",
+    "aumentam",
+    "diminuiu",
     "diminuido",
     "diminuida",
-    "diminuiu",
-    "dano",
-    "tempo",
-    "recarga",
-    "municao",
-    "alcance",
-    "velocidade",
-    "cura",
-    "vida",
-    "armadura",
-    "escudo",
-    "duracao",
+    "menos",
+    "mais",
     "projetil",
     "projeteis",
-    "raio",
-    "taxa",
-    "dispersao",
-    "precisao",
-    "impacto",
+    "cura",
+    "curado",
+    "cura por segundo",
     "efeito",
-    "efeitos",
-    "concedido",
-    "concedida",
-    "concedidos",
-    "concedidas",
-    "removido",
-    "removida",
-    "removidos",
-    "removidas",
-    "agora",
-    "passou",
-    "alterado",
-    "alterada",
-    "alterados",
-    "alteradas",
-    "melhorado",
-    "melhorada",
-    "recuperacao",
-    "custo",
-    "capacidade",
-    "regeneracao"
+    "duracao",
+    "impacto",
+    "taxa",
+    "multiplicador",
+    "porcentagem",
+    "por cento",
+    "%"
   ];
 
-  return palavras.some(
-    palavra => t.includes(palavra)
-  );
+  return palavras.some(palavra => t.includes(palavra));
 }
 
 // ======================================================
-// IDENTIFICA NOME DE HABILIDADE
+// VERIFICA SE PARECE NOME DE HABILIDADE
 // ======================================================
 
 function pareceNomeDeHabilidade(texto) {
-  if (!texto) {
-    return false;
-  }
+  const t = limparHTML(texto).trim();
 
-  const original = limparHTML(texto);
-  const t = normalizar(original);
+  if (!t) return false;
 
-  if (!t) {
-    return false;
-  }
+  if (t.length > 120) return false;
 
-  if (original.length > 120) {
-    return false;
-  }
+  if (encontrarHeroi(t)) return false;
 
-  if (pareceMudanca(original)) {
-    return false;
-  }
+  if (pareceMudanca(t)) return false;
 
   const ignorados = [
-    "comentario dos desenvolvedores",
-    "comentarios dos desenvolvedores",
-    "atualizacoes dos herois",
-    "atualizacoes de herois",
-    "atualizacoes do estadio",
-    "correcao de problemas",
-    "correcoes de problemas",
-    "bug fixes",
-    "hero updates",
-    "tank",
-    "dano",
-    "suporte",
+    "habilidades",
+    "habilidade",
+    "passiva",
+    "passivas",
+    "armas",
+    "arma",
+    "ultimates",
+    "ultimate",
+    "talentos",
+    "talento",
     "geral",
-    "herois",
-    "mapas",
-    "estadio",
-    "damage",
-    "support",
-    "topo da publicacao",
-    "forum de discussao geral",
-    "forum de relatorio de bugs"
+    "correcoes",
+    "correções",
+    "atualizacoes",
+    "atualizações",
+    "notas de patch",
+    "patch notes",
+    "mudancas",
+    "mudanças"
   ];
 
-  if (ignorados.includes(t)) {
-    return false;
-  }
+  const n = normalizar(t);
 
-  if (
-    /^nivel \d+$/.test(t) ||
-    /^\d+$/.test(t)
-  ) {
-    return false;
-  }
+  if (ignorados.includes(n)) return false;
+
+  if (/^nivel\s+\d+$/i.test(t)) return false;
+
+  if (/^\d+$/.test(t)) return false;
 
   return true;
 }
 
 // ======================================================
-// EXTRAI ELEMENTOS DO HTML
+// EXTRAI ELEMENTOS ORDENADOS
 // ======================================================
 
 function extrairElementosOrdenados(html) {
@@ -385,29 +319,27 @@ function extrairElementosOrdenados(html) {
     /<(h[1-6]|li|p|strong|b|div|span)[^>]*>([\s\S]*?)<\/\1>/gi;
 
   let match;
+  let indice = 0;
 
   while ((match = regex.exec(html)) !== null) {
     const tag = match[1].toLowerCase();
-    const texto = limparHTML(match[2]);
+    const conteudo = match[2];
 
-    if (!texto) {
-      continue;
-    }
+    const texto = limparHTML(conteudo);
 
-    if (
-      (tag === "div" || tag === "span") &&
-      texto.length > 500
-    ) {
-      continue;
+    if (!texto) continue;
+
+    let nivel = null;
+
+    if (/^h[1-6]$/i.test(tag)) {
+      nivel = Number(tag.substring(1));
     }
 
     elementos.push({
       tag,
-      nivel: tag.startsWith("h")
-        ? Number(tag.substring(1))
-        : null,
+      nivel,
       texto,
-      indice: match.index
+      indice: indice++
     });
   }
 
@@ -419,7 +351,7 @@ function extrairElementosOrdenados(html) {
 // ======================================================
 
 function extrairTitulos(html) {
-  const encontrados = [];
+  const titulos = [];
 
   const regex =
     /<h([1-6])[^>]*>([\s\S]*?)<\/h\1>/gi;
@@ -429,114 +361,17 @@ function extrairTitulos(html) {
   while ((match = regex.exec(html)) !== null) {
     const texto = limparHTML(match[2]);
 
-    if (!texto) {
-      continue;
-    }
+    if (!texto) continue;
 
-    encontrados.push({
+    titulos.push({
       nivel: Number(match[1]),
-      texto,
-      indice: match.index
+      texto
     });
   }
 
-  return encontrados;
+  return titulos;
 }
 
-// ======================================================
-// NOVO PARSER POR TEXTO
-// ======================================================
-
-function extrairMudancasPorTexto(html) {
-  const mudancas = [];
-
-  const textoLimpo = limparHTML(html);
-
-  if (!textoLimpo) {
-    return mudancas;
-  }
-
-  const linhas = textoLimpo
-    .split("\n")
-    .map(linha => linha.trim())
-    .filter(Boolean);
-
-  let heroiAtual = null;
-  let habilidadeAtual = null;
-
-  for (const linha of linhas) {
-    const texto = linha.trim();
-
-    if (!texto) {
-      continue;
-    }
-
-    // ------------------------------------------
-    // IDENTIFICA HERÓI
-    // ------------------------------------------
-
-    const heroiEncontrado =
-      encontrarHeroi(texto);
-
-    if (heroiEncontrado) {
-      heroiAtual = heroiEncontrado;
-      habilidadeAtual = null;
-      continue;
-    }
-
-    if (!heroiAtual) {
-      continue;
-    }
-
-    // ------------------------------------------
-    // IGNORA TÍTULOS GERAIS
-    // ------------------------------------------
-
-    const normalizado =
-      normalizar(texto);
-
-    if (
-      normalizado === "atualizacoes dos herois" ||
-      normalizado === "atualizacoes de herois" ||
-      normalizado === "comentario dos desenvolvedores" ||
-      normalizado === "comentarios dos desenvolvedores" ||
-      normalizado === "correcao de problemas" ||
-      normalizado === "correcoes de problemas" ||
-      normalizado === "bug fixes"
-    ) {
-      continue;
-    }
-
-    // ------------------------------------------
-    // IDENTIFICA HABILIDADE
-    // ------------------------------------------
-
-    if (
-      pareceNomeDeHabilidade(texto) &&
-      !pareceMudanca(texto) &&
-      texto.length <= 120
-    ) {
-      habilidadeAtual = texto;
-      continue;
-    }
-
-    // ------------------------------------------
-    // IDENTIFICA MUDANÇA
-    // ------------------------------------------
-
-    if (pareceMudanca(texto)) {
-      mudancas.push({
-        hero: heroiAtual,
-        habilidade:
-          habilidadeAtual || "Geral",
-        tipo: classificarMudanca(texto),
-        change: texto
-      });
-    }
-  }
-
-  return mudancas;
-}
 // ======================================================
 // EXTRAI MUDANÇAS DO BLOCO DO HERÓI
 // ======================================================
@@ -557,66 +392,75 @@ function extrairMudancasDoBlocoHeroi(
   ) {
     const elemento = elementos[i];
 
-    const outroHeroi =
-      encontrarHeroi(elemento.texto);
-
+    // Outro título de herói encerra o bloco
     if (
-      outroHeroi &&
-      normalizar(outroHeroi) !==
-        normalizar(nomeHeroi)
+      /^h[1-6]$/i.test(elemento.tag) &&
+      encontrarHeroi(elemento.texto)
     ) {
       break;
     }
 
-    if (elemento.tag.startsWith("h")) {
-      const titulo =
-        limparHTML(elemento.texto);
+    // Títulos
+    if (/^h[1-6]$/i.test(elemento.tag)) {
+      const candidato = elemento.texto.trim();
 
-      if (
-        pareceNomeDeHabilidade(titulo)
-      ) {
-        habilidadeAtual = titulo;
+      if (pareceNomeDeHabilidade(candidato)) {
+        habilidadeAtual = candidato;
       }
 
       continue;
     }
 
+    // Strong / B
     if (
-      (elemento.tag === "strong" ||
-        elemento.tag === "b") &&
-      pareceNomeDeHabilidade(
-        elemento.texto
-      )
+      elemento.tag === "strong" ||
+      elemento.tag === "b"
     ) {
-      habilidadeAtual =
-        limparHTML(elemento.texto);
+      const candidato = elemento.texto.trim();
+
+      if (pareceNomeDeHabilidade(candidato)) {
+        habilidadeAtual = candidato;
+      }
 
       continue;
     }
 
+    // Div / Span
     if (
-      elemento.tag === "li" ||
-      elemento.tag === "p" ||
       elemento.tag === "div" ||
       elemento.tag === "span"
     ) {
-      const texto =
-        limparHTML(elemento.texto);
+      const candidato = elemento.texto.trim();
+
+      const quantidadePalavras =
+        candidato.split(/\s+/).filter(Boolean).length;
+
+      if (
+        candidato.length <= 80 &&
+        quantidadePalavras <= 8 &&
+        pareceNomeDeHabilidade(candidato)
+      ) {
+        habilidadeAtual = candidato;
+      }
+
+      continue;
+    }
+
+    // Mudanças
+    if (
+      elemento.tag === "li" ||
+      elemento.tag === "p"
+    ) {
+      const texto = elemento.texto.trim();
 
       if (!pareceMudanca(texto)) {
         continue;
       }
 
-      if (texto.length > 1000) {
-        continue;
-      }
-
       mudancas.push({
         hero: nomeHeroi,
-        habilidade:
-          habilidadeAtual || "Geral",
-        tipo:
-          classificarMudanca(texto),
+        habilidade: habilidadeAtual,
+        tipo: classificarMudanca(texto),
         change: texto
       });
     }
@@ -626,157 +470,63 @@ function extrairMudancasDoBlocoHeroi(
 }
 
 // ======================================================
-// REMOVE MUDANÇAS DUPLICADAS
+// SEPARA MUDANÇAS
 // ======================================================
 
-function removerMudancasDuplicadas(
-  mudancas
-) {
-  const resultado = [];
-  const vistos = new Set();
+function separarMudancas(mudancas) {
+  const buffs = [];
+  const nerfs = [];
+  const ajustes = [];
 
   for (const mudanca of mudancas) {
-    const chave =
-      `${normalizar(mudanca.hero)}|` +
-      `${normalizar(mudanca.habilidade)}|` +
-      `${normalizar(mudanca.change)}`;
-
-    if (vistos.has(chave)) {
-      continue;
-    }
-
-    vistos.add(chave);
-    resultado.push(mudanca);
-  }
-
-  return resultado;
-}
-
-// ======================================================
-// SEPARA POR TIPO
-// ======================================================
-
-function separarMudancas(
-  hero,
-  mudancas
-) {
-  const resultado = {
-    hero,
-    buffs: [],
-    nerfs: [],
-    ajustes: []
-  };
-
-  for (const mudanca of mudancas) {
-    if (
-      mudanca.tipo === "buff"
-    ) {
-      resultado.buffs.push(
-        mudanca
-      );
-    } else if (
-      mudanca.tipo === "nerf"
-    ) {
-      resultado.nerfs.push(
-        mudanca
-      );
+    if (mudanca.tipo === "buff") {
+      buffs.push(mudanca);
+    } else if (mudanca.tipo === "nerf") {
+      nerfs.push(mudanca);
     } else {
-      resultado.ajustes.push(
-        mudanca
-      );
+      ajustes.push(mudanca);
     }
   }
 
-  return resultado;
+  return {
+    buffs,
+    nerfs,
+    ajustes
+  };
 }
 
 // ======================================================
 // CRIA TEXTO
 // ======================================================
 
-function criarTexto(
-  mudancas
-) {
-  if (
-    !mudancas ||
-    mudancas.length === 0
-  ) {
+function criarTexto(lista) {
+  if (!lista || lista.length === 0) {
     return "";
   }
 
-  const grupos = {};
-
-  for (const mudanca of mudancas) {
-    const habilidade =
-      mudanca.habilidade ||
-      "Geral";
-
-    if (!grupos[habilidade]) {
-      grupos[habilidade] = [];
-    }
-
-    grupos[habilidade].push(
-      mudanca
-    );
-  }
-
-  let texto = "";
-
-  for (
-    const habilidade of Object.keys(
-      grupos
-    )
-  ) {
-    texto +=
-      `🔹 **${habilidade}**\n`;
-
-    for (
-      const mudanca of
-        grupos[habilidade]
-    ) {
-      let emoji = "🟡";
-
-      if (
-        mudanca.tipo === "buff"
-      ) {
-        emoji = "🟢";
+  return lista
+    .map(item => {
+      if (item.habilidade) {
+        return `${item.habilidade}: ${item.change}`;
       }
 
-      if (
-        mudanca.tipo === "nerf"
-      ) {
-        emoji = "🔴";
-      }
-
-      texto +=
-        `${emoji} ${mudanca.change}\n`;
-    }
-
-    texto += "\n";
-  }
-
-  return texto.trim();
+      return item.change;
+    })
+    .join("\n");
 }
 
 // ======================================================
-// TEXTO DE CORREÇÕES
+// CRIA TEXTO DE CORREÇÕES
 // ======================================================
 
-function criarTextoCorrecoes(
-  correcoes
-) {
-  if (
-    !correcoes ||
-    correcoes.length === 0
-  ) {
+function criarTextoCorrecoes(lista) {
+  if (!lista || lista.length === 0) {
     return "";
   }
 
-  return correcoes
-    .map(
-      correcao =>
-        `🛠️ ${correcao}`
-    )
+  return lista
+    .map(item => item.trim())
+    .filter(Boolean)
     .join("\n");
 }
 
@@ -784,53 +534,32 @@ function criarTextoCorrecoes(
 // DIVIDE TEXTO
 // ======================================================
 
-function dividirTexto(
-  texto,
-  limite = 1900
-) {
+function dividirTexto(texto, limite = 1900) {
+  if (!texto) return [];
+
   const partes = [];
-
-  if (!texto) {
-    return partes;
-  }
-
   let atual = "";
 
-  const linhas =
-    texto.split("\n");
+  const linhas = texto.split("\n");
 
-  for (
-    const linha of linhas
-  ) {
+  for (const linha of linhas) {
     if (
-      (
-        atual +
-        linha +
-        "\n"
-      ).length > limite
+      atual.length + linha.length + 1 >
+      limite
     ) {
-      if (
-        atual.trim()
-      ) {
-        partes.push(
-          atual.trim()
-        );
+      if (atual.trim()) {
+        partes.push(atual.trim());
       }
 
-      atual =
-        linha + "\n";
+      atual = linha;
     } else {
       atual +=
-        linha + "\n";
+        (atual ? "\n" : "") + linha;
     }
   }
 
-  if (
-    atual.trim()
-  ) {
-    partes.push(
-      atual.trim()
-    );
+  if (atual.trim()) {
+    partes.push(atual.trim());
   }
 
   return partes;
@@ -840,972 +569,603 @@ function dividirTexto(
 // EXTRAI SEÇÃO POR TÍTULO
 // ======================================================
 
-function extrairSecaoPorTitulo(
-  html,
-  titulos
-) {
-  if (
-    !Array.isArray(titulos)
-  ) {
-    titulos = [titulos];
-  }
+function extrairSecaoPorTitulo(html, titulo) {
+  const elementos = extrairElementosOrdenados(html);
 
-  for (
-    const titulo of titulos
-  ) {
-    const regexTitulo =
-      new RegExp(
-        `<h([1-6])[^>]*>\\s*${escaparRegex(
-          titulo
-        )}\\s*<\\/h\\1>`,
-        "i"
-      );
+  const tituloNormalizado = normalizar(titulo);
 
-    const inicio =
-      html.match(
-        regexTitulo
-      );
-
-    if (!inicio) {
-      continue;
-    }
-
-    const inicioIndice =
-      inicio.index;
-
-    const nivel =
-      Number(inicio[1]);
-
-    const restante =
-      html.substring(
-        inicioIndice +
-          inicio[0].length
-      );
-
-    const regexProximo =
-      new RegExp(
-        `<h[1-${nivel}][^>]*>`,
-        "i"
-      );
-
-    const fim =
-      restante.search(
-        regexProximo
-      );
-
-    if (fim === -1) {
-      return restante;
-    }
-
-    return restante.substring(
-      0,
-      fim
-    );
-  }
-
-  // ------------------------------------------
-  // FALLBACK POR TEXTO
-  // ------------------------------------------
-
-  const texto =
-    limparHTML(html);
-
-  const linhas =
-    texto.split("\n");
-
-  let indiceInicio = -1;
-
-  for (
-    let i = 0;
-    i < linhas.length;
-    i++
-  ) {
-    const atual =
-      normalizar(
-        linhas[i]
-      );
-
+  for (let i = 0; i < elementos.length; i++) {
     if (
-      titulos.some(
-        titulo =>
-          atual ===
-          normalizar(titulo)
-      )
+      normalizar(elementos[i].texto) ===
+      tituloNormalizado
     ) {
-      indiceInicio =
-        i + 1;
+      const resultados = [];
 
-      break;
+      for (
+        let j = i + 1;
+        j < elementos.length;
+        j++
+      ) {
+        if (
+          elementos[j].nivel !== null &&
+          elementos[j].nivel <= elementos[i].nivel
+        ) {
+          break;
+        }
+
+        resultados.push(elementos[j].texto);
+      }
+
+      return resultados;
     }
   }
 
-  if (
-    indiceInicio === -1
-  ) {
-    return "";
-  }
-
-  const resultado = [];
-
-  for (
-    let i = indiceInicio;
-    i < linhas.length;
-    i++
-  ) {
-    const atual =
-      normalizar(
-        linhas[i]
-      );
-
-    if (
-      atual ===
-        "atualizacoes dos herois" ||
-      atual ===
-        "atualizacoes de herois"
-    ) {
-      break;
-    }
-
-    resultado.push(
-      linhas[i]
-    );
-  }
-
-  return resultado.join(
-    "\n"
-  );
+  return [];
 }
-
 // ======================================================
 // BAIXA PÁGINA DA BLIZZARD
 // ======================================================
 
-function baixarPagina(
-  url,
-  quantidadeRedirecionamentos = 0
-) {
-  return new Promise(
-    (resolve, reject) => {
-      if (
-        quantidadeRedirecionamentos >
-        5
-      ) {
-        return reject(
-          new Error(
-            "Muitos redirecionamentos da Blizzard."
-          )
-        );
-      }
+function baixarPagina(url, redirecionamentos = 0) {
+  return new Promise((resolve, reject) => {
+    if (redirecionamentos > 5) {
+      reject(new Error("Muitos redirecionamentos"));
+      return;
+    }
 
-      const cliente =
-        url.startsWith(
-          "https://"
-        )
-          ? https
-          : http;
+    const cliente = url.startsWith("https")
+      ? https
+      : http;
 
-      const requisicao =
-        cliente.get(
-          url,
-          {
-            headers: {
-              "User-Agent":
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/140 Safari/537.36",
+    const requisicao = cliente.get(
+      url,
+      {
+        headers: {
+          "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131.0.0.0 Safari/537.36",
+          "Accept":
+            "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+          "Accept-Language":
+            "pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7"
+        },
+        timeout: 20000
+      },
+      resposta => {
+        const status = resposta.statusCode || 0;
 
-              "Accept":
-                "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        // Redirecionamento
+        if (
+          status >= 300 &&
+          status < 400 &&
+          resposta.headers.location
+        ) {
+          resposta.resume();
 
-              "Accept-Language":
-                "pt-BR,pt;q=0.9,en;q=0.8",
+          let novaUrl = resposta.headers.location;
 
-              "Cache-Control":
-                "no-cache"
-            }
-          },
-          resposta => {
-            if (
-              resposta.statusCode >=
-                300 &&
-              resposta.statusCode <
-                400 &&
-              resposta.headers.location
-            ) {
-              resposta.resume();
-
-              const novaURL =
-                new URL(
-                  resposta.headers.location,
-                  url
-                ).toString();
-
-              return baixarPagina(
-                novaURL,
-                quantidadeRedirecionamentos +
-                  1
-              )
-                .then(resolve)
-                .catch(reject);
-            }
-
-            if (
-              resposta.statusCode <
-                200 ||
-              resposta.statusCode >=
-                300
-            ) {
-              resposta.resume();
-
-              return reject(
-                new Error(
-                  `Blizzard respondeu com HTTP ${resposta.statusCode}.`
-                )
-              );
-            }
-
-            let html = "";
-
-            resposta.setEncoding(
-              "utf8"
-            );
-
-            resposta.on(
-              "data",
-              parte => {
-                html += parte;
-              }
-            );
-
-            resposta.on(
-              "end",
-              () => {
-                if (!html) {
-                  return reject(
-                    new Error(
-                      "A Blizzard retornou uma página vazia."
-                    )
-                  );
-                }
-
-                resolve(html);
-              }
-            );
+          if (novaUrl.startsWith("/")) {
+            const base = new URL(url);
+            novaUrl =
+              base.protocol +
+              "//" +
+              base.host +
+              novaUrl;
           }
-        );
 
-      requisicao.setTimeout(
-        20000,
-        () => {
-          requisicao.destroy(
+          baixarPagina(
+            novaUrl,
+            redirecionamentos + 1
+          )
+            .then(resolve)
+            .catch(reject);
+
+          return;
+        }
+
+        if (status < 200 || status >= 300) {
+          resposta.resume();
+
+          reject(
             new Error(
-              "Tempo limite ao acessar a Blizzard."
+              `HTTP ${status} ao acessar a Blizzard`
             )
           );
-        }
-      );
 
-      requisicao.on(
-        "error",
-        erro => {
-          reject(erro);
+          return;
         }
+
+        let dados = "";
+
+        resposta.setEncoding("utf8");
+
+        resposta.on("data", parte => {
+          dados += parte;
+        });
+
+        resposta.on("end", () => {
+          resolve(dados);
+        });
+      }
+    );
+
+    requisicao.on("timeout", () => {
+      requisicao.destroy(
+        new Error(
+          "Tempo limite ao acessar a Blizzard"
+        )
       );
-    }
-  );
+    });
+
+    requisicao.on("error", erro => {
+      reject(erro);
+    });
+  });
 }
 
 // ======================================================
-// OBTÉM OS DADOS DA BLIZZARD
+// OBTÉM DADOS
 // ======================================================
 
 async function obterDados() {
-  const agora =
-    Date.now();
+  const agora = Date.now();
 
   if (
     cache.dados &&
-    agora -
-      cache.atualizadoEm <
-      CACHE_TIME
+    agora - cache.atualizadoEm < CACHE_TIME
   ) {
     return cache.dados;
   }
 
   console.log(
-    "Baixando página oficial da Blizzard..."
+    "Baixando patch notes da Blizzard..."
   );
 
-  const html =
-    await baixarPagina(
-      BLIZZARD_URL
-    );
+  const html = await baixarPagina(
+    BLIZZARD_URL
+  );
 
-  // ------------------------------------------
-  // PARSER ESTRUTURADO
-  // ------------------------------------------
+  console.log(
+    `HTML recebido: ${html.length} caracteres`
+  );
 
   const elementos =
-    extrairElementosOrdenados(
-      html
-    );
+    extrairElementosOrdenados(html);
 
-  const mudancasEstruturadas =
-    [];
+  console.log(
+    `Elementos encontrados: ${elementos.length}`
+  );
 
-  for (
-    let i = 0;
-    i < elementos.length;
-    i++
-  ) {
-    const hero =
-      encontrarHeroi(
-        elementos[i].texto
-      );
+  const dadosHerois = {};
 
-    if (!hero) {
+  for (const heroi of HEROIS) {
+    dadosHerois[heroi] = {
+      hero: heroi,
+      buffs: [],
+      nerfs: [],
+      ajustes: [],
+      buffsTexto: "",
+      nerfsTexto: "",
+      ajustesTexto: "",
+      buffsPartes: [],
+      nerfsPartes: [],
+      ajustesPartes: []
+    };
+  }
+
+  // ====================================================
+  // PROCURA OS HERÓIS
+  // ====================================================
+
+  for (let i = 0; i < elementos.length; i++) {
+    const elemento = elementos[i];
+
+    if (!/^h[1-6]$/i.test(elemento.tag)) {
       continue;
     }
 
-    const mudancasHeroi =
+    const heroi = encontrarHeroi(
+      elemento.texto
+    );
+
+    if (!heroi) {
+      continue;
+    }
+
+    console.log(
+      `Herói encontrado: ${heroi}`
+    );
+
+    const mudancas =
       extrairMudancasDoBlocoHeroi(
         elementos,
         i,
-        hero
+        heroi
       );
 
-    mudancasEstruturadas.push(
-      ...mudancasHeroi
+    if (!mudancas.length) {
+      continue;
+    }
+
+    const separadas =
+      separarMudancas(mudancas);
+
+    dadosHerois[heroi].buffs.push(
+      ...separadas.buffs
+    );
+
+    dadosHerois[heroi].nerfs.push(
+      ...separadas.nerfs
+    );
+
+    dadosHerois[heroi].ajustes.push(
+      ...separadas.ajustes
     );
   }
 
-  // ------------------------------------------
-  // PARSER DE RECUPERAÇÃO
-  // ------------------------------------------
-
-  const mudancasPorTexto =
-    extrairMudancasPorTexto(
-      html
-    );
-
-  // ------------------------------------------
-  // JUNTA OS DOIS RESULTADOS
-  // ------------------------------------------
-
-  let todasMudancas =
-    [
-      ...mudancasEstruturadas,
-      ...mudancasPorTexto
-    ];
-
-  todasMudancas =
-    removerMudancasDuplicadas(
-      todasMudancas
-    );
-
-  // ------------------------------------------
-  // ORGANIZA POR HERÓI
-  // ------------------------------------------
-
-  const herois = {};
-
-  for (
-    const hero of HEROIS
-  ) {
-    const mudancasHeroi =
-      todasMudancas.filter(
-        mudanca =>
-          normalizar(
-            mudanca.hero
-          ) ===
-          normalizar(hero)
-      );
-
-    const separado =
-      separarMudancas(
-        hero,
-        mudancasHeroi
-      );
-
-    herois[hero] =
-      separado;
-  }
-
-  // ------------------------------------------
+  // ====================================================
   // CORREÇÕES
-  // ------------------------------------------
+  // ====================================================
 
-  const secaoCorrecoes =
-    extrairSecaoPorTitulo(
-      html,
-      [
-        "Correção de problemas",
-        "Correções de problemas",
-        "Correção de Problemas",
-        "Correções de Problemas"
-      ]
-    );
+  let correcoes = [];
 
-  const correcoes = [];
+  const possiveisTitulos = [
+    "Correções de bugs",
+    "Correções",
+    "Correções de erros",
+    "Bug Fixes",
+    "Correções de bugs e ajustes"
+  ];
 
-  if (
-    secaoCorrecoes
-  ) {
-    const linhas =
-      limparHTML(
-        secaoCorrecoes
-      )
-        .split("\n")
-        .map(
-          linha =>
-            linha.trim()
-        )
-        .filter(Boolean);
-
-    for (
-      const linha of linhas
-    ) {
-      if (
-        linha.length < 10
-      ) {
-        continue;
-      }
-
-      if (
-        encontrarHeroi(linha)
-      ) {
-        continue;
-      }
-
-      correcoes.push(
-        linha
+  for (const titulo of possiveisTitulos) {
+    const secao =
+      extrairSecaoPorTitulo(
+        html,
+        titulo
       );
+
+    if (secao.length) {
+      correcoes = secao;
+      break;
     }
   }
 
-  // ------------------------------------------
-  // REMOVE CORREÇÕES DUPLICADAS
-  // ------------------------------------------
+  // ====================================================
+  // MONTA TEXTOS
+  // ====================================================
 
-  const correcoesUnicas =
-    [
-      ...new Set(
-        correcoes.map(
-          correcao =>
-            correcao.trim()
-        )
+  for (const heroi of HEROIS) {
+    const dados =
+      dadosHerois[heroi];
+
+    dados.buffsTexto =
+      criarTexto(dados.buffs);
+
+    dados.nerfsTexto =
+      criarTexto(dados.nerfs);
+
+    dados.ajustesTexto =
+      criarTexto(dados.ajustes);
+
+    dados.buffsPartes =
+      dividirTexto(
+        dados.buffsTexto
+      );
+
+    dados.nerfsPartes =
+      dividirTexto(
+        dados.nerfsTexto
+      );
+
+    dados.ajustesPartes =
+      dividirTexto(
+        dados.ajustesTexto
+      );
+  }
+
+  const resultado = {
+    atualizadoEm: new Date().toISOString(),
+
+    fonte: BLIZZARD_URL,
+
+    herois: dadosHerois,
+
+    correcoes: correcoes,
+
+    correcoesTexto:
+      criarTextoCorrecoes(correcoes),
+
+    correcoesPartes:
+      dividirTexto(
+        criarTextoCorrecoes(correcoes)
       )
-    ];
-
-  // ------------------------------------------
-  // TEXTOS
-  // ------------------------------------------
-
-  const texto =
-    criarTexto(
-      todasMudancas
-    );
-
-  const textoCorrecoes =
-    criarTextoCorrecoes(
-      correcoesUnicas
-    );
-
-  const partes =
-    dividirTexto(
-      texto
-    );
-
-  const partesCorrecoes =
-    dividirTexto(
-      textoCorrecoes
-    );
-
-  // ------------------------------------------
-  // RESULTADO FINAL
-  // ------------------------------------------
-
-  const dados = {
-    atualizadoEm:
-      new Date().toISOString(),
-
-    fonte:
-      BLIZZARD_URL,
-
-    totalMudancas:
-      todasMudancas.length,
-
-    totalCorrecoes:
-      correcoesUnicas.length,
-
-    mudancas:
-      todasMudancas,
-
-    correcoes:
-      correcoesUnicas,
-
-    texto,
-
-    textoCorrecoes,
-
-    partes,
-
-    partesCorrecoes,
-
-    herois
   };
 
   cache = {
-    dados,
-    atualizadoEm:
-      Date.now()
+    dados: resultado,
+    atualizadoEm: agora
   };
 
-  console.log(
-    `Dados atualizados: ${todasMudancas.length} mudanças, ${correcoesUnicas.length} correções.`
-  );
-
-  return dados;
+  return resultado;
 }
+
 // ======================================================
 // SERVIDOR HTTP
 // ======================================================
 
-const server =
-  http.createServer(
-    async (req, res) => {
+const servidor = http.createServer(
+  async (req, res) => {
+    // CORS
+    res.setHeader(
+      "Access-Control-Allow-Origin",
+      "*"
+    );
+
+    res.setHeader(
+      "Access-Control-Allow-Methods",
+      "GET, OPTIONS"
+    );
+
+    res.setHeader(
+      "Access-Control-Allow-Headers",
+      "Content-Type"
+    );
+
+    // OPTIONS
+    if (req.method === "OPTIONS") {
+      res.writeHead(204);
+      res.end();
+      return;
+    }
+
+    const url = new URL(
+      req.url,
+      `http://${req.headers.host}`
+    );
+
+    // ==================================================
+    // /
+    // ==================================================
+
+    if (
+      req.method === "GET" &&
+      url.pathname === "/"
+    ) {
+      res.writeHead(200, {
+        "Content-Type":
+          "application/json; charset=utf-8"
+      });
+
+      res.end(
+        JSON.stringify({
+          status: "online",
+          api: "Overwatch Patch API",
+          endpoints: [
+            "/dados",
+            "/patch",
+            "/patch?hero=D.Va",
+            "/test-blizzard"
+          ]
+        })
+      );
+
+      return;
+    }
+
+    // ==================================================
+    // TESTE BLIZZARD
+    // ==================================================
+
+    if (
+      req.method === "GET" &&
+      url.pathname === "/test-blizzard"
+    ) {
       try {
-        const url =
-          new URL(
-            req.url,
-            `http://${req.headers.host}`
+        const html =
+          await baixarPagina(
+            BLIZZARD_URL
           );
 
-        const headers = {
+        res.writeHead(200, {
           "Content-Type":
-            "application/json; charset=utf-8",
+            "application/json; charset=utf-8"
+        });
 
-          "Access-Control-Allow-Origin":
-            "*",
-
-          "Access-Control-Allow-Methods":
-            "GET, OPTIONS"
-        };
-
-        // ==================================================
-        // OPTIONS
-        // ==================================================
-
-        if (
-          req.method === "OPTIONS"
-        ) {
-          res.writeHead(
-            204,
-            headers
-          );
-
-          return res.end();
-        }
-
-        // ==================================================
-        // /
-        // ==================================================
-
-        if (
-          url.pathname === "/"
-        ) {
-          res.writeHead(
-            200,
-            headers
-          );
-
-          return res.end(
-            JSON.stringify(
-              {
-                status:
-                  "online",
-
-                nome:
-                  "Overwatch Patch API",
-
-                fonte:
-                  BLIZZARD_URL,
-
-                endpoints: {
-                  dados:
-                    "/dados",
-
-                  patch:
-                    "/patch",
-
-                  patchHeroi:
-                    "/patch?hero=D.Va",
-
-                  testBlizzard:
-                    "/test-blizzard"
-                }
-              },
-              null,
-              2
+        res.end(
+          JSON.stringify({
+            sucesso: true,
+            tamanhoHTML: html.length,
+            inicioHTML: html.substring(
+              0,
+              500
             )
-          );
-        }
-
-        // ==================================================
-        // /test-blizzard
-        // ==================================================
-
-        if (
-          url.pathname ===
-          "/test-blizzard"
-        ) {
-          try {
-            const dados =
-              await obterDados();
-
-            res.writeHead(
-              200,
-              headers
-            );
-
-            return res.end(
-              JSON.stringify(
-                {
-                  status:
-                    "ok",
-
-                  mensagem:
-                    "Página da Blizzard processada com sucesso.",
-
-                  quantidadeMudancas:
-                    dados.totalMudancas,
-
-                  quantidadeCorrecoes:
-                    dados.totalCorrecoes,
-
-                  atualizadoEm:
-                    dados.atualizadoEm
-                },
-                null,
-                2
-              )
-            );
-          } catch (erro) {
-            console.error(
-              "Erro /test-blizzard:",
-              erro
-            );
-
-            res.writeHead(
-              500,
-              headers
-            );
-
-            return res.end(
-              JSON.stringify(
-                {
-                  status:
-                    "erro",
-
-                  mensagem:
-                    erro.message,
-
-                  tipo:
-                    erro.code ||
-                    erro.name ||
-                    "Erro"
-                },
-                null,
-                2
-              )
-            );
-          }
-        }
-
-        // ==================================================
-        // /dados
-        // ==================================================
-
-        if (
-          url.pathname ===
-          "/dados"
-        ) {
-          try {
-            const dados =
-              await obterDados();
-
-            res.writeHead(
-              200,
-              headers
-            );
-
-            return res.end(
-              JSON.stringify(
-                dados,
-                null,
-                2
-              )
-            );
-          } catch (erro) {
-            console.error(
-              "Erro /dados:",
-              erro
-            );
-
-            res.writeHead(
-              500,
-              headers
-            );
-
-            return res.end(
-              JSON.stringify(
-                {
-                  erro:
-                    erro.message
-                },
-                null,
-                2
-              )
-            );
-          }
-        }
-
-        // ==================================================
-        // /patch
-        // ==================================================
-
-        if (
-          url.pathname ===
-          "/patch"
-        ) {
-          try {
-            const dados =
-              await obterDados();
-
-            const heroQuery =
-              url.searchParams.get(
-                "hero"
-              );
-
-            // ----------------------------------------------
-            // SEM HERÓI
-            // ----------------------------------------------
-
-            if (!heroQuery) {
-              res.writeHead(
-                200,
-                headers
-              );
-
-              return res.end(
-                JSON.stringify(
-                  {
-                    fonte:
-                      BLIZZARD_URL,
-
-                    total:
-                      dados.mudancas.length,
-
-                    mudancas:
-                      dados.mudancas,
-
-                    correcoes:
-                      dados.correcoes,
-
-                    texto:
-                      dados.texto,
-
-                    textoCorrecoes:
-                      dados.textoCorrecoes,
-
-                    partes:
-                      dados.partes,
-
-                    partesCorrecoes:
-                      dados.partesCorrecoes
-                  },
-                  null,
-                  2
-                )
-              );
-            }
-
-            // ----------------------------------------------
-            // PROCURA HERÓI
-            // ----------------------------------------------
-
-            const nomeHeroi =
-              encontrarHeroi(
-                heroQuery
-              );
-
-            if (!nomeHeroi) {
-              res.writeHead(
-                404,
-                headers
-              );
-
-              return res.end(
-                JSON.stringify(
-                  {
-                    erro:
-                      "Herói não encontrado.",
-
-                    heroiRecebido:
-                      heroQuery,
-
-                    heroisDisponiveis:
-                      HEROIS
-                  },
-                  null,
-                  2
-                )
-              );
-            }
-
-            // ----------------------------------------------
-            // RESULTADO DO HERÓI
-            // ----------------------------------------------
-
-            const resultadoHeroi =
-              dados.herois[
-                nomeHeroi
-              ];
-
-            res.writeHead(
-              200,
-              headers
-            );
-
-            return res.end(
-              JSON.stringify(
-                resultadoHeroi,
-                null,
-                2
-              )
-            );
-          } catch (erro) {
-            console.error(
-              "Erro /patch:",
-              erro
-            );
-
-            res.writeHead(
-              500,
-              headers
-            );
-
-            return res.end(
-              JSON.stringify(
-                {
-                  erro:
-                    erro.message
-                },
-                null,
-                2
-              )
-            );
-          }
-        }
-
-        // ==================================================
-        // 404
-        // ==================================================
-
-        res.writeHead(
-          404,
-          headers
+          })
         );
+      } catch (erro) {
+        res.writeHead(500, {
+          "Content-Type":
+            "application/json; charset=utf-8"
+        });
 
-        return res.end(
-          JSON.stringify(
-            {
-              erro:
-                "Endpoint não encontrado."
-            },
-            null,
-            2
-          )
+        res.end(
+          JSON.stringify({
+            sucesso: false,
+            erro: erro.message
+          })
         );
+      }
 
+      return;
+    }
+
+    // ==================================================
+    // /dados
+    // ==================================================
+
+    if (
+      req.method === "GET" &&
+      url.pathname === "/dados"
+    ) {
+      try {
+        const dados =
+          await obterDados();
+
+        res.writeHead(200, {
+          "Content-Type":
+            "application/json; charset=utf-8"
+        });
+
+        res.end(
+          JSON.stringify(dados)
+        );
       } catch (erro) {
         console.error(
-          "Erro interno:",
+          "Erro em /dados:",
           erro
         );
 
-        res.writeHead(
-          500,
-          {
-            "Content-Type":
-              "application/json; charset=utf-8"
-          }
-        );
+        res.writeHead(500, {
+          "Content-Type":
+            "application/json; charset=utf-8"
+        });
 
-        return res.end(
-          JSON.stringify(
-            {
-              erro:
-                "Erro interno do servidor.",
-
-              detalhes:
-                erro.message
-            },
-            null,
-            2
-          )
+        res.end(
+          JSON.stringify({
+            erro:
+              "Erro ao obter dados da Blizzard",
+            detalhes:
+              erro.message
+          })
         );
       }
+
+      return;
     }
-  );
+
+    // ==================================================
+    // /patch
+    // ==================================================
+
+    if (
+      req.method === "GET" &&
+      url.pathname === "/patch"
+    ) {
+      try {
+        const dados =
+          await obterDados();
+
+        const nomeHeroi =
+          url.searchParams.get(
+            "hero"
+          );
+
+        // ----------------------------------------------
+        // SEM HERÓI
+        // ----------------------------------------------
+
+        if (!nomeHeroi) {
+          res.writeHead(200, {
+            "Content-Type":
+              "application/json; charset=utf-8"
+          });
+
+          res.end(
+            JSON.stringify(
+              dados
+            )
+          );
+
+          return;
+        }
+
+        // ----------------------------------------------
+        // COM HERÓI
+        // ----------------------------------------------
+
+        const heroi =
+          encontrarHeroi(
+            nomeHeroi
+          );
+
+        if (!heroi) {
+          res.writeHead(404, {
+            "Content-Type":
+              "application/json; charset=utf-8"
+          });
+
+          res.end(
+            JSON.stringify({
+              erro: "Herói não encontrado",
+              hero: nomeHeroi
+            })
+          );
+
+          return;
+        }
+
+        res.writeHead(200, {
+          "Content-Type":
+            "application/json; charset=utf-8"
+        });
+
+        res.end(
+          JSON.stringify(
+            dados.herois[heroi]
+          )
+        );
+      } catch (erro) {
+        console.error(
+          "Erro em /patch:",
+          erro
+        );
+
+        res.writeHead(500, {
+          "Content-Type":
+            "application/json; charset=utf-8"
+        });
+
+        res.end(
+          JSON.stringify({
+            erro:
+              "Erro ao obter patch",
+            detalhes:
+              erro.message
+          })
+        );
+      }
+
+      return;
+    }
+
+    // ==================================================
+    // 404
+    // ==================================================
+
+    res.writeHead(404, {
+      "Content-Type":
+        "application/json; charset=utf-8"
+    });
+
+    res.end(
+      JSON.stringify({
+        erro: "Endpoint não encontrado"
+      })
+    );
+  }
+);
 
 // ======================================================
 // INICIA SERVIDOR
 // ======================================================
 
-server.listen(
+servidor.listen(
   PORT,
   () => {
     console.log(
-      "=========================================="
+      `Servidor iniciado na porta ${PORT}`
     );
 
     console.log(
-      "Overwatch Patch API"
-    );
-
-    console.log(
-      "=========================================="
-    );
-
-    console.log(
-      `Porta: ${PORT}`
-    );
-
-    console.log(
-      `Fonte: ${BLIZZARD_URL}`
-    );
-
-    console.log(
-      "Endpoint: /"
-    );
-
-    console.log(
-      "Endpoint: /dados"
-    );
-
-    console.log(
-      "Endpoint: /patch"
-    );
-
-    console.log(
-      "Endpoint: /patch?hero=D.Va"
-    );
-
-    console.log(
-      "Endpoint: /test-blizzard"
-    );
-
-    console.log(
-      "=========================================="
+      `Endpoint: /patch?hero=D.Va`
     );
   }
-);a
+);
