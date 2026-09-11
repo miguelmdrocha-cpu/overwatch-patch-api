@@ -4,6 +4,8 @@ const PORT = process.env.PORT || 10000;
 
 function limparHTML(texto) {
   return texto
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
     .replace(/<[^>]*>/g, " ")
     .replace(/&nbsp;/gi, " ")
     .replace(/&amp;/gi, "&")
@@ -13,15 +15,38 @@ function limparHTML(texto) {
     .trim();
 }
 
+function extrairTitulos(html) {
+  const titulos = [];
+
+  const regex =
+    /<h[1-6][^>]*>([\s\S]*?)<\/h[1-6]>/gi;
+
+  let match;
+
+  while ((match = regex.exec(html)) !== null) {
+    const texto = limparHTML(match[1]);
+
+    if (texto && !titulos.includes(texto)) {
+      titulos.push(texto);
+    }
+  }
+
+  return titulos;
+}
+
 const server = http.createServer(async (req, res) => {
 
-  res.setHeader("Content-Type", "application/json; charset=utf-8");
+  res.setHeader(
+    "Content-Type",
+    "application/json; charset=utf-8"
+  );
 
   // =========================
   // ROTA PRINCIPAL
   // =========================
 
   if (req.url === "/") {
+
     res.writeHead(200);
 
     res.end(JSON.stringify({
@@ -33,10 +58,11 @@ const server = http.createServer(async (req, res) => {
   }
 
   // =========================
-  // TESTE DA BLIZZARD
+  // TESTE DE CONEXÃO
   // =========================
 
   if (req.url === "/test-blizzard") {
+
     try {
 
       const response = await fetch(
@@ -67,10 +93,10 @@ const server = http.createServer(async (req, res) => {
   }
 
   // =========================
-  // ESTRUTURA DA PÁGINA
+  // NOVA ROTA DE EXTRAÇÃO
   // =========================
 
-  if (req.url === "/estrutura") {
+  if (req.url === "/extrair") {
 
     try {
 
@@ -80,52 +106,31 @@ const server = http.createServer(async (req, res) => {
 
       const html = await response.text();
 
-      // Procurar títulos H1 até H6
-      const titulos = [];
+      const titulos = extrairTitulos(html);
 
-      const regexTitulos =
-        /<h[1-6][^>]*>([\s\S]*?)<\/h[1-6]>/gi;
+      // Procurar a posição da seção de heróis
+      const posicaoHerois =
+        html.toLowerCase().indexOf(
+          "atualizações dos heróis"
+        );
 
-      let match;
+      // Procurar a posição da seção de correções
+      const posicaoCorrecoes =
+        html.toLowerCase().indexOf(
+          "bug fixes"
+        );
 
-      while (
-        (match = regexTitulos.exec(html)) !== null &&
-        titulos.length < 100
-      ) {
+      let trechoHerois = "";
 
-        const titulo = limparHTML(match[1]);
+      if (posicaoHerois !== -1) {
 
-        if (titulo) {
-          titulos.push(titulo);
-        }
+        trechoHerois = limparHTML(
+          html.substring(
+            posicaoHerois,
+            posicaoHerois + 8000
+          )
+        );
       }
-
-      // Procurar alguns marcadores importantes
-      const htmlMinusculo = html.toLowerCase();
-
-      const marcadores = {
-
-        patchNotes:
-          htmlMinusculo.includes("patch notes"),
-
-        notasDoPatch:
-          htmlMinusculo.includes("notas do patch"),
-
-        heroUpdates:
-          htmlMinusculo.includes("hero updates"),
-
-        atualizacoesDeHerois:
-          htmlMinusculo.includes("atualizações de heróis"),
-
-        bugFixes:
-          htmlMinusculo.includes("bug fixes"),
-
-        correcoes:
-          htmlMinusculo.includes("correções"),
-
-        atualizacoes:
-          htmlMinusculo.includes("atualizações")
-      };
 
       res.writeHead(200);
 
@@ -137,11 +142,19 @@ const server = http.createServer(async (req, res) => {
 
         tamanhoDaPagina: html.length,
 
-        quantidadeDeTitulos: titulos.length,
+        secaoDeHeroisEncontrada:
+          posicaoHerois !== -1,
+
+        secaoDeCorrecoesEncontrada:
+          posicaoCorrecoes !== -1,
+
+        quantidadeDeTitulos:
+          titulos.length,
 
         titulos: titulos,
 
-        marcadores: marcadores
+        amostraDaSecaoDeHerois:
+          trechoHerois
 
       }, null, 2));
 
@@ -162,7 +175,7 @@ const server = http.createServer(async (req, res) => {
   }
 
   // =========================
-  // ROTA NÃO ENCONTRADA
+  // 404
   // =========================
 
   res.writeHead(404);
