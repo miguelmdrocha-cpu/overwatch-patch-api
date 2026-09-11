@@ -40,7 +40,7 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  if (req.url === "/buffs") {
+  if (req.url === "/preview") {
     try {
       const response = await fetch(
         "https://overwatch.blizzard.com/pt-br/news/patch-notes/"
@@ -51,14 +51,8 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(200);
       res.end(JSON.stringify({
         status: "ok",
-        patch: "Patch Notes oficial",
-        buffs: [
-          {
-            hero: "Dados da Blizzard recebidos",
-            change: "A página oficial foi acessada com sucesso."
-          }
-        ],
-        paginaRecebida: html.length
+        blizzardStatus: response.status,
+        preview: html.substring(0, 3000)
       }));
 
     } catch (error) {
