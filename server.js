@@ -549,8 +549,20 @@ function extrairBlocosHabilidades(blocoHeroi) {
 function extrairBlocosHerois(html) {
   const resultados = [];
 
+  // ALTERAÇÃO:
+  // Antes a expressão procurava qualquer classe que
+  // contivesse "PatchNotesHeroUpdate".
+  //
+  // Isso também encontrava classes internas como:
+  // PatchNotesHeroUpdate-header
+  // PatchNotesHeroUpdate-body
+  // PatchNotesHeroUpdate-name
+  //
+  // Agora exigimos exatamente a classe principal
+  // PatchNotesHeroUpdate.
+
   const regex =
-    /<div[^>]*class=["'][^"']*PatchNotesHeroUpdate[^"']*["'][^>]*>([\s\S]*?)(?=<div[^>]*class=["'][^"']*PatchNotesHeroUpdate[^"']*["']|<div[^>]*class=["'][^"']*PatchNotes-section[^"']*["']|<\/body>|<\/main>)/gi;
+    /<div[^>]*class=["']PatchNotesHeroUpdate["'][^>]*>([\s\S]*?)(?=<div[^>]*class=["']PatchNotesHeroUpdate["']|<div[^>]*class=["'][^"']*PatchNotes-section[^"']*["']|<\/body>|<\/main>)/gi;
 
   let match;
 
@@ -560,6 +572,7 @@ function extrairBlocosHerois(html) {
 
   return resultados;
 }
+
 // ======================================================
 // VERIFICA SE O BLOCO PERTENCE AO ESTÁDIO
 // ======================================================
@@ -720,7 +733,6 @@ function extrairDadosHerois(html) {
     ajustes
   };
 }
-
 // ======================================================
 // CORREÇÕES
 // ======================================================
@@ -1270,4 +1282,4 @@ server.listen(PORT, () => {
   console.log(
     `Endpoint: /patch?hero=D.Va`
   );
-});
+});a
