@@ -1,3 +1,4 @@
+
 const http = require("http");
 const https = require("https");
 
@@ -460,9 +461,6 @@ function extrairLista(html) {
 // ======================================================
 // EXTRAIR DIV COMPLETA
 // ======================================================
-// Esta função é importante porque o HTML da Blizzard
-// possui várias DIVs dentro de PatchNotesHeroUpdate.
-// Regex simples acaba cortando o bloco antes da hora.
 
 function extrairDivsPorClasse(html, classe) {
   const resultados = [];
@@ -748,6 +746,7 @@ function extrairDadosHerois(html) {
     ajustes
   };
 }
+
 // ======================================================
 // CORREÇÕES
 // ======================================================
@@ -836,48 +835,72 @@ function criarTextoCorrecoes(lista) {
 }
 
 // ======================================================
-// DIVIDIR TEXTO
+// DIVIDIR TEXTO - VERSÃO CORRIGIDA
 // ======================================================
 
-function dividirTexto(
-  texto,
-  tamanho = 3500
-) {
+function dividirTexto(texto, tamanho = 3500) {
   const partes = [];
 
-  if (!texto) {
+  if (!texto || !texto.trim()) {
     return partes;
   }
 
   let atual = "";
 
-  const linhas =
-    texto.split("\n");
+  // Divide por alterações completas, não por linhas.
+  const blocos = texto
+    .trim()
+    .split(/\n\s*\n/)
+    .filter((bloco) => bloco.trim());
 
-  for (const linha of linhas) {
-    if (
-      atual.length +
-        linha.length +
-        1 >
-      tamanho
-    ) {
-      if (atual.trim()) {
-        partes.push(
-          atual.trim()
-        );
-      }
-
+  function adicionarParte() {
+    if (atual.trim()) {
+      partes.push(atual.trim());
       atual = "";
     }
-
-    atual += linha + "\n";
   }
 
-  if (atual.trim()) {
-    partes.push(
-      atual.trim()
-    );
+  for (const bloco of blocos) {
+    const conteudo = bloco.trim();
+    const separador = atual ? "\n\n" : "";
+
+    if (
+      atual.length +
+      separador.length +
+      conteudo.length <= tamanho
+    ) {
+      atual += separador + conteudo;
+      continue;
+    }
+
+    // O bloco não cabe: começa outra parte.
+    adicionarParte();
+
+    // Segurança para alterações excepcionalmente longas.
+    if (conteudo.length > tamanho) {
+      let restante = conteudo;
+
+      while (restante.length > tamanho) {
+        let corte = restante.lastIndexOf(" ", tamanho);
+
+        if (corte <= 0) {
+          corte = tamanho;
+        }
+
+        partes.push(
+          restante.slice(0, corte).trim()
+        );
+
+        restante = restante.slice(corte).trim();
+      }
+
+      atual = restante;
+    } else {
+      atual = conteudo;
+    }
   }
+
+  adicionarParte();
 
   return partes;
 }
@@ -917,8 +940,7 @@ function baixarPagina(url) {
               "end",
               () => {
                 if (
-                  res.statusCode >=
-                    300 &&
+                  res.statusCode >= 300 &&
                   res.statusCode < 400 &&
                   res.headers.location
                 ) {
@@ -931,10 +953,7 @@ function baixarPagina(url) {
                   return;
                 }
 
-                if (
-                  res.statusCode !==
-                  200
-                ) {
+                if (res.statusCode !== 200) {
                   reject(
                     new Error(
                       `Blizzard retornou HTTP ${res.statusCode}`
@@ -962,14 +981,11 @@ function baixarPagina(url) {
 // ======================================================
 
 async function obterDados() {
-  const agora =
-    Date.now();
+  const agora = Date.now();
 
   if (
     cache.dados &&
-    agora -
-      cache.atualizadoEm <
-      CACHE_TIME
+    agora - cache.atualizadoEm < CACHE_TIME
   ) {
     return cache.dados;
   }
@@ -1084,9 +1100,7 @@ async function obterDados() {
 // PATCH DE UM HERÓI
 // ======================================================
 
-async function obterPatchHeroi(
-  nomeHeroi
-) {
+async function obterPatchHeroi(nomeHeroi) {
   const dados =
     await obterDados();
 
@@ -1102,41 +1116,26 @@ async function obterPatchHeroi(
   const mudancas = [
     ...dados.buffs.filter(
       (item) =>
-        normalizar(
-          item.hero
-        ) ===
-        normalizar(hero)
+        normalizar(item.hero) === normalizar(hero)
     ),
 
     ...dados.nerfs.filter(
       (item) =>
-        normalizar(
-          item.hero
-        ) ===
-        normalizar(hero)
+        normalizar(item.hero) === normalizar(hero)
     ),
 
     ...dados.ajustes.filter(
       (item) =>
-        normalizar(
-          item.hero
-        ) ===
-        normalizar(hero)
+        normalizar(item.hero) === normalizar(hero)
     )
   ];
 
-  if (
-    mudancas.length === 0
-  ) {
+  if (mudancas.length === 0) {
     return {
       hero,
-
       buffs: [],
-
       nerfs: [],
-
       ajustes: [],
-
       texto:
         `Nenhuma alteração encontrada para ${hero}.`
     };
@@ -1144,23 +1143,17 @@ async function obterPatchHeroi(
 
   const buffs =
     mudancas.filter(
-      (item) =>
-        item.tipo ===
-        "buff"
+      (item) => item.tipo === "buff"
     );
 
   const nerfs =
     mudancas.filter(
-      (item) =>
-        item.tipo ===
-        "nerf"
+      (item) => item.tipo === "nerf"
     );
 
   const ajustes =
     mudancas.filter(
-      (item) =>
-        item.tipo ===
-        "ajuste"
+      (item) => item.tipo === "ajuste"
     );
 
   let texto =
@@ -1170,18 +1163,11 @@ async function obterPatchHeroi(
   // BUFFS
   // ----------------------------------------------------
 
-  if (
-    buffs.length > 0
-  ) {
-    texto +=
-      "🟢 **BUFFS**\n\n";
+  if (buffs.length > 0) {
+    texto += "🟢 **BUFFS**\n\n";
 
-    for (
-      const item of buffs
-    ) {
-      if (
-        item.habilidade
-      ) {
+    for (const item of buffs) {
+      if (item.habilidade) {
         texto +=
           `🔹 **${item.habilidade}**\n` +
           `${item.change}\n\n`;
@@ -1196,18 +1182,11 @@ async function obterPatchHeroi(
   // NERFS
   // ----------------------------------------------------
 
-  if (
-    nerfs.length > 0
-  ) {
-    texto +=
-      "🔴 **NERFS**\n\n";
+  if (nerfs.length > 0) {
+    texto += "🔴 **NERFS**\n\n";
 
-    for (
-      const item of nerfs
-    ) {
-      if (
-        item.habilidade
-      ) {
+    for (const item of nerfs) {
+      if (item.habilidade) {
         texto +=
           `🔹 **${item.habilidade}**\n` +
           `${item.change}\n\n`;
@@ -1222,18 +1201,11 @@ async function obterPatchHeroi(
   // ALTERAÇÕES
   // ----------------------------------------------------
 
-  if (
-    ajustes.length > 0
-  ) {
-    texto +=
-      "⚪ **ALTERAÇÕES**\n\n";
+  if (ajustes.length > 0) {
+    texto += "⚪ **ALTERAÇÕES**\n\n";
 
-    for (
-      const item of ajustes
-    ) {
-      if (
-        item.habilidade
-      ) {
+    for (const item of ajustes) {
+      if (item.habilidade) {
         texto +=
           `🔹 **${item.habilidade}**\n` +
           `${item.change}\n\n`;
@@ -1246,15 +1218,10 @@ async function obterPatchHeroi(
 
   return {
     hero,
-
     buffs,
-
     nerfs,
-
     ajustes,
-
-    texto:
-      texto.trim()
+    texto: texto.trim()
   };
 }
 
@@ -1269,19 +1236,14 @@ const server =
         const url =
           new URL(
             req.url,
-            `http://${
-              req.headers.host ||
-              "localhost"
-            }`
+            `http://${req.headers.host || "localhost"}`
           );
 
         // ==================================================
         // /
         // ==================================================
 
-        if (
-          url.pathname === "/"
-        ) {
+        if (url.pathname === "/") {
           res.writeHead(
             200,
             {
@@ -1293,10 +1255,8 @@ const server =
           res.end(
             JSON.stringify({
               sucesso: true,
-
               mensagem:
                 "Overwatch Patch API funcionando!",
-
               endpoints: [
                 "/",
                 "/dados",
@@ -1313,10 +1273,7 @@ const server =
         // /test-blizzard
         // ==================================================
 
-        if (
-          url.pathname ===
-          "/test-blizzard"
-        ) {
+        if (url.pathname === "/test-blizzard") {
           const html =
             await baixarPagina(
               BLIZZARD_URL
@@ -1329,47 +1286,24 @@ const server =
 
           let resultado = {
             sucesso: true,
-
-            tamanhoHTML:
-              html.length,
-
-            inicioHTML:
-              html.substring(
-                0,
-                1000
-              )
+            tamanhoHTML: html.length,
+            inicioHTML: html.substring(0, 1000)
           };
 
           if (buscar) {
             const indice =
-              normalizar(
-                html
-              ).indexOf(
-                normalizar(
-                  buscar
-                )
+              normalizar(html).indexOf(
+                normalizar(buscar)
               );
 
-            resultado.busca =
-              buscar;
+            resultado.busca = buscar;
+            resultado.encontrado = indice !== -1;
 
-            resultado.encontrado =
-              indice !== -1;
-
-            if (
-              indice !== -1
-            ) {
+            if (indice !== -1) {
               resultado.trecho =
                 html.substring(
-                  Math.max(
-                    0,
-                    indice - 1500
-                  ),
-
-                  Math.min(
-                    html.length,
-                    indice + 5000
-                  )
+                  Math.max(0, indice - 1500),
+                  Math.min(html.length, indice + 5000)
                 );
             }
           }
@@ -1383,9 +1317,7 @@ const server =
           );
 
           res.end(
-            JSON.stringify(
-              resultado
-            )
+            JSON.stringify(resultado)
           );
 
           return;
@@ -1395,10 +1327,7 @@ const server =
         // /dados
         // ==================================================
 
-        if (
-          url.pathname ===
-          "/dados"
-        ) {
+        if (url.pathname === "/dados") {
           const dados =
             await obterDados();
 
@@ -1411,9 +1340,7 @@ const server =
           );
 
           res.end(
-            JSON.stringify(
-              dados
-            )
+            JSON.stringify(dados)
           );
 
           return;
@@ -1423,10 +1350,7 @@ const server =
         // /patch
         // ==================================================
 
-        if (
-          url.pathname ===
-          "/patch"
-        ) {
+        if (url.pathname === "/patch") {
           const nomeHeroi =
             url.searchParams.get(
               "hero"
@@ -1484,9 +1408,7 @@ const server =
           );
 
           res.end(
-            JSON.stringify(
-              resultado
-            )
+            JSON.stringify(resultado)
           );
 
           return;
@@ -1528,7 +1450,6 @@ const server =
           JSON.stringify({
             erro:
               "Erro interno no servidor.",
-
             detalhes:
               erro.message
           })
@@ -1553,3 +1474,4 @@ server.listen(
     );
   }
 );
+    
